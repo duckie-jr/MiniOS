@@ -740,15 +740,25 @@ OS.registerApp('terminal', function buildTerminal() {
       break;
 
     case 'reset':
-      OS.confirm('Reset filesystem to factory defaults? All changes will be lost.', function (yes) {
-        if (yes) {
+      var currentUser = OS.getActiveUser ? OS.getActiveUser() : 'unknown';
+      OS.confirm('This will DELETE all data for user "' + currentUser + '" and log you out. Continue?', function (firstYes) {
+        if (!firstYes) return;
+        OS.confirm('Are you sure? This cannot be undone.', function (secondYes) {
+          if (!secondYes) return;
           OS.resetFilesystem();
-          currentDirectory = ['C:'];
-          updatePrompt();
-          addLine('Filesystem reset to defaults.', 'success');
-          addLine('Reopen file manager to see changes.');
+          addLine('All data for "' + currentUser + '" has been wiped.', 'success');
+          addLine('Logging out in 2 seconds...');
           terminalBody.scrollTop = terminalBody.scrollHeight;
-        }
+          setTimeout(function () {
+            // Close all windows and go to login screen
+            while (OS.windows.length > 0) {
+              var closeBtn = OS.windows[0].el.querySelector('.btn-close');
+              if (closeBtn) closeBtn.click(); else break;
+            }
+            document.querySelector('#start-menu').classList.add('hidden');
+            location.reload();
+          }, 2000);
+        });
       });
       break;
 
