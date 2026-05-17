@@ -5,11 +5,59 @@ var OS = window.MicroOS;
 // ── Notepad ──
 OS.registerApp('notepad', function buildNotepad() {
   var savedContent = localStorage.getItem('micro-notepad') || 'Welcome to Mini OS Notepad!';
-  var windowObj = OS.createWindow('Untitled - Notepad', 480, 340,
+  var windowObj = OS.createWindow('Untitled - Notepad', 480, 360,
     '<div class="notepad-menu"><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Help</span></div>' +
+    '<div class="notepad-find-bar" style="display:none;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;gap:4px;align-items:center">' +
+      '<span>Find:</span>' +
+      '<input class="notepad-find-input" style="flex:1;padding:1px 4px;font-size:11px;border:1px inset #c8c4b8;font-family:inherit" />' +
+      '<button class="notepad-find-next" style="padding:1px 8px;font-size:10px;font-family:inherit;cursor:pointer">Next</button>' +
+      '<button class="notepad-find-close" style="padding:1px 6px;font-size:10px;font-family:inherit;cursor:pointer">X</button>' +
+    '</div>' +
     '<textarea class="notepad-body">' + OS.escapeHtml(savedContent) + '</textarea>');
-  windowObj.el.querySelector('.notepad-body').addEventListener('input', function () {
+  var notepadBody = windowObj.el.querySelector('.notepad-body');
+  var findBar = windowObj.el.querySelector('.notepad-find-bar');
+  var findInput = windowObj.el.querySelector('.notepad-find-input');
+
+  notepadBody.addEventListener('input', function () {
     localStorage.setItem('micro-notepad', this.value);
+  });
+
+  function showFindBar() {
+    findBar.style.display = 'flex';
+    findInput.focus();
+    var selectedText = notepadBody.value.substring(notepadBody.selectionStart, notepadBody.selectionEnd);
+    if (selectedText) findInput.value = selectedText;
+    findInput.select();
+  }
+
+  function findNext() {
+    var searchTerm = findInput.value;
+    if (!searchTerm) return;
+    var text = notepadBody.value;
+    var startFrom = notepadBody.selectionEnd || 0;
+    var foundIndex = text.toLowerCase().indexOf(searchTerm.toLowerCase(), startFrom);
+    if (foundIndex === -1) foundIndex = text.toLowerCase().indexOf(searchTerm.toLowerCase(), 0);
+    if (foundIndex >= 0) {
+      notepadBody.focus();
+      notepadBody.setSelectionRange(foundIndex, foundIndex + searchTerm.length);
+    }
+  }
+
+  windowObj.el.querySelector('.notepad-find-next').addEventListener('click', findNext);
+  findInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); findNext(); }
+    if (e.key === 'Escape') { findBar.style.display = 'none'; notepadBody.focus(); }
+  });
+  windowObj.el.querySelector('.notepad-find-close').addEventListener('click', function () {
+    findBar.style.display = 'none';
+    notepadBody.focus();
+  });
+
+  notepadBody.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); showFindBar(); }
+  });
+  windowObj.el.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); showFindBar(); }
   });
 });
 
@@ -304,10 +352,17 @@ OS.registerApp('files', function buildFiles() {
         });
       }});
       menuItems.push({ label: 'Delete', action: function () {
-        OS.confirm('Delete "' + selectedName + '"?', function (yes) {
+        OS.confirm('Move "' + selectedName + '" to Recycle Bin?', function (yes) {
           if (yes) {
+            var recycleBin = OS.recycleBin();
+            if (recycleBin && recycleBin.children) {
+              var recycleName = selectedName;
+              while (recycleBin.children[recycleName]) recycleName = recycleName.replace(/(\.[^.]+)?$/, ' (2)$1');
+              recycleBin.children[recycleName] = parentNode.children[selectedName];
+            }
             delete parentNode.children[selectedName];
             render();
+            OS.showNotification('Recycle Bin', selectedName + ' moved to Recycle Bin');
           }
         });
       }});
@@ -407,6 +462,47 @@ OS.registerApp('files', function buildFiles() {
         row.classList.add('selected');
         showFileContextMenu(e.clientX, e.clientY, name, child);
       });
+
+      // ── Drag and drop ──
+      row.setAttribute('draggable', 'true');
+      row.addEventListener('dragstart', function (dragEvent) {
+        dragEvent.dataTransfer.setData('text/plain', name);
+        dragEvent.dataTransfer.effectAllowed = 'move';
+        row.style.opacity = '0.5';
+      });
+      row.addEventListener('dragend', function () { row.style.opacity = '1'; });
+
+      if (isFolder) {
+        row.addEventListener('dragover', function (dragEvent) {
+          dragEvent.preventDefault();
+          dragEvent.dataTransfer.dropEffect = 'move';
+          row.style.background = '#1a4a8a';
+          row.style.color = '#fff';
+        });
+        row.addEventListener('dragleave', function () {
+          row.style.background = '';
+          row.style.color = '';
+        });
+        row.addEventListener('drop', function (dragEvent) {
+          dragEvent.preventDefault();
+          row.style.background = '';
+          row.style.color = '';
+          var draggedFileName = dragEvent.dataTransfer.getData('text/plain');
+          if (!draggedFileName || draggedFileName === name) return;
+          var parentNode = getCurrentNode();
+          if (!parentNode || !parentNode.children || !parentNode.children[draggedFileName]) return;
+          var targetFolder = parentNode.children[name];
+          if (!targetFolder || targetFolder.type !== 'folder') return;
+          if (targetFolder.children[draggedFileName]) {
+            OS.showNotification('File Manager', 'A file with that name already exists in ' + name);
+            return;
+          }
+          targetFolder.children[draggedFileName] = parentNode.children[draggedFileName];
+          delete parentNode.children[draggedFileName];
+          render();
+          OS.showNotification('File Manager', 'Moved ' + draggedFileName + ' into ' + name);
+        });
+      }
 
       listElement.appendChild(row);
     });
@@ -513,6 +609,8 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('  systeminfo         System information');
       addLine('  calc <expr>        Evaluate math expression');
       addLine('  ipconfig           Show network info');
+      addLine('  emptybin           Empty the Recycle Bin');
+      addLine('  restore <name>     Restore file from Recycle Bin');
       addLine('  save               Save filesystem to localStorage');
       addLine('  load               Load filesystem from localStorage');
       addLine('  export [file]      Download filesystem as .json');
@@ -614,7 +712,14 @@ OS.registerApp('terminal', function buildTerminal() {
       if (!delParent || !delParent.children || !delParent.children[argString]) { addLine('Not found: ' + argString, 'error'); break; }
       var delTarget = delParent.children[argString];
       if (delTarget.type === 'folder' && Object.keys(delTarget.children || {}).length > 0) { addLine('Directory is not empty.', 'error'); break; }
+      var recycleBinNode = OS.recycleBin();
+      if (recycleBinNode && recycleBinNode.children) {
+        var rName = argString;
+        while (recycleBinNode.children[rName]) rName = rName.replace(/(\.[^.]+)?$/, ' (2)$1');
+        recycleBinNode.children[rName] = delParent.children[argString];
+      }
       delete delParent.children[argString];
+      addLine('Moved to Recycle Bin.');
       break;
 
     case 'move': case 'mv': case 'ren': case 'rename':
@@ -704,6 +809,32 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('   IPv4 Address. . . . . . : 192.168.1.' + Math.floor(Math.random() * 254 + 1));
       addLine('   Subnet Mask . . . . . . : 255.255.255.0');
       addLine('   Default Gateway . . . . : 192.168.1.1');
+      break;
+
+    case 'emptybin':
+      var emptyBinNode = OS.recycleBin();
+      if (!emptyBinNode) { addLine('Recycle Bin not found.', 'error'); break; }
+      var binCount = Object.keys(emptyBinNode.children || {}).length;
+      if (binCount === 0) { addLine('Recycle Bin is already empty.'); break; }
+      OS.confirm('Permanently delete ' + binCount + ' item(s) from Recycle Bin?', function (yes) {
+        if (yes) {
+          emptyBinNode.children = {};
+          addLine('Recycle Bin emptied. ' + binCount + ' item(s) permanently deleted.', 'success');
+          terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+      });
+      break;
+
+    case 'restore':
+      if (!argString) { addLine('Usage: restore <filename>', 'error'); break; }
+      var restoreBin = OS.recycleBin();
+      if (!restoreBin || !restoreBin.children || !restoreBin.children[argString]) { addLine('Not found in Recycle Bin: ' + argString, 'error'); break; }
+      var restoreTarget = resolveNode(currentDirectory);
+      if (!restoreTarget || !restoreTarget.children) { addLine('Cannot restore to current directory.', 'error'); break; }
+      if (restoreTarget.children[argString]) { addLine('A file with that name already exists here.', 'error'); break; }
+      restoreTarget.children[argString] = restoreBin.children[argString];
+      delete restoreBin.children[argString];
+      addLine('Restored ' + argString + ' to ' + currentDirectory.join('\\'));
       break;
 
     case 'save':
@@ -803,6 +934,28 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine(getPromptText() + cmd);
       runCommand(cmd);
       terminalBody.scrollTop = terminalBody.scrollHeight;
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      var currentText = input.value;
+      // Split into command and args
+      var spaceIndex = currentText.lastIndexOf(' ');
+      var prefix = spaceIndex >= 0 ? currentText.substring(spaceIndex + 1) : currentText;
+      var beforePrefix = spaceIndex >= 0 ? currentText.substring(0, spaceIndex + 1) : '';
+
+      // Get the current directory contents for matching
+      var dirNode = resolveNode(currentDirectory);
+      if (dirNode && dirNode.children) {
+        var matchingNames = Object.keys(dirNode.children).filter(function (entryName) {
+          return entryName.toLowerCase().indexOf(prefix.toLowerCase()) === 0;
+        });
+        if (matchingNames.length === 1) {
+          input.value = beforePrefix + matchingNames[0];
+        } else if (matchingNames.length > 1) {
+          addLine(getPromptText() + currentText);
+          addLine(matchingNames.join('  '));
+          terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+      }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (historyIndex > 0) { historyIndex--; input.value = commandHistory[historyIndex]; }
@@ -1229,88 +1382,67 @@ OS.registerApp('codeeditor', function buildCodeEditor() {
   });
 });
 
-// ── Task Manager ──
-OS.registerApp('taskmanager', function buildTaskManager() {
-  var windowObj = OS.createWindow('Task Manager', 420, 320,
+// ── Find Files ──
+OS.registerApp('findfiles', function buildFindFiles() {
+  var windowObj = OS.createWindow('Find Files', 400, 320,
     '<div style="display:flex;flex-direction:column;height:100%;background:#ece9d8">' +
-    '<div style="display:flex;gap:4px;padding:4px 6px;background:#ece9d8;border-bottom:1px solid #aca899;flex-shrink:0">' +
-      '<button class="tm-refresh" style="background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit">Refresh</button>' +
-      '<button class="tm-killall" style="background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit;color:#c00">End All</button>' +
-      '<span style="margin-left:auto;font-size:10px;color:#555;padding-top:3px" class="tm-count"></span>' +
+    '<div style="display:flex;gap:4px;padding:6px;border-bottom:1px solid #aca899;flex-shrink:0;align-items:center">' +
+      '<span style="font-size:11px">Search:</span>' +
+      '<input class="search-input" style="flex:1;padding:2px 6px;font-size:11px;border:2px inset #c8c4b8;font-family:inherit" placeholder="Type a filename..." />' +
+      '<button class="search-btn" style="padding:2px 12px;font-size:11px;font-family:inherit;cursor:pointer;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Search</button>' +
     '</div>' +
-    '<div style="display:flex;padding:2px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;flex-shrink:0">' +
-      '<span style="flex:2">Window Title</span>' +
-      '<span style="width:60px;text-align:center">Status</span>' +
-      '<span style="width:70px;text-align:right;padding-right:8px">Action</span>' +
-    '</div>' +
-    '<div class="tm-list" style="flex:1;overflow-y:auto;background:#fff"></div>' +
+    '<div class="search-results" style="flex:1;overflow-y:auto;padding:4px;background:#fff;font-size:11px"></div>' +
+    '<div class="search-status" style="padding:2px 8px;background:#ece9d8;border-top:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0"></div>' +
     '</div>');
 
   windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
-  var listElement = windowObj.el.querySelector('.tm-list');
-  var countSpan = windowObj.el.querySelector('.tm-count');
+  var searchInput = windowObj.el.querySelector('.search-input');
+  var resultsElement = windowObj.el.querySelector('.search-results');
+  var statusElement = windowObj.el.querySelector('.search-status');
 
-  function renderTaskList() {
-    listElement.innerHTML = '';
-    countSpan.textContent = OS.windows.length + ' window(s)';
-
-    OS.windows.forEach(function (targetWindow) {
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;padding:3px 6px;font-size:11px;border-bottom:1px solid #eee';
-      var statusText = targetWindow.minimized ? 'Minimized' : (targetWindow.maximized ? 'Maximized' : 'Running');
-      var statusColor = targetWindow.minimized ? '#999' : '#2a2';
-
-      row.innerHTML =
-        '<span style="flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + OS.escapeHtml(targetWindow.title) + '</span>' +
-        '<span style="width:60px;text-align:center;color:' + statusColor + ';font-size:10px">' + statusText + '</span>' +
-        '<span style="width:70px;text-align:right;padding-right:4px"></span>';
-
-      var actionSpan = row.querySelector('span:last-child');
-      var focusButton = document.createElement('button');
-      focusButton.textContent = 'Focus';
-      focusButton.style.cssText = 'background:#4a8acc;color:#fff;border:none;padding:1px 6px;font-size:9px;cursor:pointer;border-radius:2px;margin-right:2px';
-      focusButton.addEventListener('click', function () {
-        targetWindow.minimized = false;
-        targetWindow.el.classList.remove('minimized');
-        targetWindow.el.style.zIndex = 9999;
-        renderTaskList();
-      });
-
-      var killButton = document.createElement('button');
-      killButton.textContent = 'End';
-      killButton.style.cssText = 'background:#c44;color:#fff;border:none;padding:1px 6px;font-size:9px;cursor:pointer;border-radius:2px';
-      killButton.addEventListener('click', function () {
-        var closeBtn = targetWindow.el.querySelector('.btn-close');
-        if (closeBtn) closeBtn.click();
-        setTimeout(renderTaskList, 50);
-      });
-
-      actionSpan.appendChild(focusButton);
-      actionSpan.appendChild(killButton);
-      listElement.appendChild(row);
-    });
-
-    if (OS.windows.length === 0) {
-      listElement.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:11px">No windows open</div>';
-    }
-  }
-
-  windowObj.el.querySelector('.tm-refresh').addEventListener('click', renderTaskList);
-  windowObj.el.querySelector('.tm-killall').addEventListener('click', function () {
-    OS.confirm('Close all windows?', function (yes) {
-      if (yes) {
-        while (OS.windows.length > 0) {
-          var closeBtn = OS.windows[0].el.querySelector('.btn-close');
-          if (closeBtn) closeBtn.click(); else break;
-        }
-        setTimeout(renderTaskList, 50);
+  function searchFilesystem(node, currentPath, query, results) {
+    if (!node || !node.children) return;
+    Object.keys(node.children).forEach(function (name) {
+      var child = node.children[name];
+      var fullPath = currentPath + '\\' + name;
+      if (name.toLowerCase().indexOf(query) >= 0) {
+        results.push({ name: name, path: fullPath, type: child.type, size: child.size || 0 });
+      }
+      if (child.type === 'folder') {
+        searchFilesystem(child, fullPath, query, results);
       }
     });
-  });
+  }
 
-  renderTaskList();
-  var refreshInterval = setInterval(renderTaskList, 3000);
-  windowObj.el.querySelector('.btn-close').addEventListener('click', function () { clearInterval(refreshInterval); });
+  function doSearch() {
+    var query = searchInput.value.trim().toLowerCase();
+    if (!query) { statusElement.textContent = 'Type a search term.'; return; }
+    var results = [];
+    searchFilesystem(OS.fileSystem['C:'], 'C:', query, results);
+    resultsElement.innerHTML = '';
+    statusElement.textContent = results.length + ' result(s) found';
+
+    if (results.length === 0) {
+      resultsElement.innerHTML = '<div style="padding:16px;text-align:center;color:#999">No files matching "' + OS.escapeHtml(query) + '"</div>';
+      return;
+    }
+
+    results.forEach(function (result) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 6px;cursor:default;border:1px solid transparent;border-radius:2px';
+      row.innerHTML =
+        '<span style="width:16px;height:16px;flex-shrink:0">' + (result.type === 'folder' ? OS.folderSvg : OS.fileSvg) + '</span>' +
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + OS.escapeHtml(result.name) + '</span>' +
+        '<span style="color:#888;font-size:10px;flex-shrink:0">' + OS.escapeHtml(result.path) + '</span>';
+      row.addEventListener('mouseenter', function () { row.style.background = '#e8e8f0'; });
+      row.addEventListener('mouseleave', function () { row.style.background = ''; });
+      resultsElement.appendChild(row);
+    });
+  }
+
+  windowObj.el.querySelector('.search-btn').addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
+  searchInput.focus();
 });
 
 })();
