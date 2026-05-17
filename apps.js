@@ -113,7 +113,8 @@ OS.registerApp('files', function buildFiles() {
       '.bat': 'Batch File', '.cmd': 'Batch File',
       '.jpg': 'JPEG Image', '.jpeg': 'JPEG Image', '.png': 'PNG Image',
       '.bmp': 'Bitmap', '.gif': 'GIF Image',
-      '.mp3': 'Audio', '.wav': 'Audio', '.m3u': 'Playlist'
+      '.mp3': 'Audio', '.wav': 'Audio', '.m3u': 'Playlist',
+      '.app': 'Application'
     };
     var dotIndex = name.lastIndexOf('.');
     if (dotIndex >= 0) {
@@ -133,6 +134,7 @@ OS.registerApp('files', function buildFiles() {
     if (lower.endsWith('.bat') || lower.endsWith('.cmd')) return OS.batSvg;
     if (lower.endsWith('.md')) return OS.mdSvg;
     if (lower.match(/\.(jpg|jpeg|png|bmp|gif)$/)) return OS.imgSvg;
+    if (lower.endsWith('.app')) return OS.appSvg;
     return OS.fileSvg;
   }
 
@@ -186,6 +188,16 @@ OS.registerApp('files', function buildFiles() {
       return;
     }
 
+    if (lowerName.endsWith('.app')) {
+      try {
+        var appFunction = new Function('OS', content);
+        appFunction(OS);
+      } catch (appError) {
+        OS.showNotification('Error', 'Failed to run ' + name + ': ' + appError.message);
+      }
+      return;
+    }
+
     var editWindow = OS.createWindow(name + ' - Notepad', 460, 320,
       '<div class="notepad-menu"><span>File</span><span>Edit</span></div>' +
       '<textarea class="notepad-body">' + OS.escapeHtml(content) + '</textarea>');
@@ -207,8 +219,9 @@ OS.registerApp('files', function buildFiles() {
   });
 
   hiddenFileInput.addEventListener('change', function () {
-    var parentNode = getCurrentNode();
-    if (!parentNode || !parentNode.children) return;
+    var downloadsFolder = OS.fileSystem['C:'].children['Downloads'];
+    if (!downloadsFolder || !downloadsFolder.children) return;
+    var parentNode = downloadsFolder;
     Array.from(hiddenFileInput.files).forEach(function (file) {
       var reader = new FileReader();
       reader.onload = function () {
@@ -264,18 +277,21 @@ OS.registerApp('files', function buildFiles() {
       }});
       menuItems.push('---');
       menuItems.push({ label: 'Rename', action: function () {
-        var newName = prompt('Rename "' + selectedName + '" to:', selectedName);
-        if (newName && newName !== selectedName && !parentNode.children[newName]) {
-          parentNode.children[newName] = parentNode.children[selectedName];
-          delete parentNode.children[selectedName];
-          render();
-        }
+        OS.prompt('Rename "' + selectedName + '" to:', selectedName, function (newName) {
+          if (newName && newName !== selectedName && !parentNode.children[newName]) {
+            parentNode.children[newName] = parentNode.children[selectedName];
+            delete parentNode.children[selectedName];
+            render();
+          }
+        });
       }});
       menuItems.push({ label: 'Delete', action: function () {
-        if (confirm('Delete "' + selectedName + '"?')) {
-          delete parentNode.children[selectedName];
-          render();
-        }
+        OS.confirm('Delete "' + selectedName + '"?', function (yes) {
+          if (yes) {
+            delete parentNode.children[selectedName];
+            render();
+          }
+        });
       }});
     } else {
       // Clicked on empty space in the file list
@@ -301,18 +317,20 @@ OS.registerApp('files', function buildFiles() {
       }});
       menuItems.push('---');
       menuItems.push({ label: 'New Folder', icon: OS.folderSvg, action: function () {
-        var name = prompt('Folder name:', 'New Folder');
-        if (name && !parentNode.children[name]) {
-          parentNode.children[name] = { type: 'folder', children: {} };
-          render();
-        }
+        OS.prompt('Folder name:', 'New Folder', function (name) {
+          if (name && !parentNode.children[name]) {
+            parentNode.children[name] = { type: 'folder', children: {} };
+            render();
+          }
+        });
       }});
       menuItems.push({ label: 'New Text File', icon: OS.fileSvg, action: function () {
-        var name = prompt('File name:', 'Untitled.txt');
-        if (name && !parentNode.children[name]) {
-          parentNode.children[name] = { type: 'file', size: 0, modified: todayString(), content: '' };
-          render();
-        }
+        OS.prompt('File name:', 'Untitled.txt', function (name) {
+          if (name && !parentNode.children[name]) {
+            parentNode.children[name] = { type: 'file', size: 0, modified: todayString(), content: '' };
+            render();
+          }
+        });
       }});
       menuItems.push('---');
       menuItems.push({ label: 'Upload Files...', action: function () { hiddenFileInput.click(); } });
@@ -477,7 +495,6 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('  systeminfo         System information');
       addLine('  calc <expr>        Evaluate math expression');
       addLine('  ipconfig           Show network info');
-      addLine('  color              Change colors (just kidding)');
       break;
 
     case 'dir': case 'ls':
@@ -663,10 +680,6 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('   IPv4 Address. . . . . . : 192.168.1.' + Math.floor(Math.random() * 254 + 1));
       addLine('   Subnet Mask . . . . . . : 255.255.255.0');
       addLine('   Default Gateway . . . . : 192.168.1.1');
-      break;
-
-    case 'color':
-      addLine('Colors changed. (not really)');
       break;
 
     case 'pwd':
