@@ -45,7 +45,9 @@ var fileSystem = {
         'changelog.md':     { type: 'file', size: 220, modified: '2024-09-10', content: '# MicroOS Changelog\r\n\r\n## v1.2\r\n- File manager with detail view\r\n- Multiple file type support\r\n\r\n## v1.1\r\n- Added minesweeper, paint, clock\r\n\r\n## v1.0\r\n- Initial release\r\n- Notepad, Calculator, Terminal\r\n- Window manager with drag/resize' },
         'bugs.log':         { type: 'file', size: 195, modified: '2024-09-08', content: '[2024-09-08 14:32] BUG: Paint canvas does not resize with window\r\n[2024-09-07 09:15] BUG: Terminal has no command history\r\n[2024-09-06 22:01] BUG: Clock app is too simple\r\n[2024-09-05 11:45] BUG: Browser might refuse to load some sites\r\n[2024-09-04 16:20] FIXED: File manager was text-only' },
         'build.bat':        { type: 'file', size: 85,  modified: '2024-08-20', content: '@echo off\r\necho Building MicroOS...\r\necho Compiling assets...\r\ntimeout /t 2\r\necho Build complete!\r\npause' },
-        'config.json':      { type: 'file', size: 145, modified: '2024-08-22', content: '{\r\n  "appName": "MicroOS",\r\n  "version": "1.2.0",\r\n  "debug": false,\r\n  "theme": "xp-luna",\r\n  "bootTimeout": 3,\r\n  "defaultApps": ["notepad", "calculator", "files"]\r\n}' }
+        'config.json':      { type: 'file', size: 145, modified: '2024-08-22', content: '{\r\n  "appName": "MicroOS",\r\n  "version": "1.2.0",\r\n  "debug": false,\r\n  "theme": "xp-luna",\r\n  "bootTimeout": 3,\r\n  "defaultApps": ["notepad", "calculator", "files"]\r\n}' },
+        'hello.app':        { type: 'file', size: 160, modified: '2024-09-12', content: 'OS.prompt("What is your name?", "User", function(name) {\n  if (name) {\n    OS.createWindow("Hello App", 280, 150, "<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;font-weight:700;color:#003399;background:#ece9d8\'>Hello, " + name + "!</div>");\n    OS.showNotification("Hello App", "Greeted " + name);\n  }\n});' },
+        'dice.app':         { type: 'file', size: 95,  modified: '2024-09-12', content: 'var roll = Math.floor(Math.random() * 6) + 1;\nOS.createWindow("Dice Roller", 200, 140, "<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;background:#ece9d8\'>" + roll + "</div>");' }
       }},
       'Work':               { type: 'folder', children: {
         'meeting-notes.md': { type: 'file', size: 200, modified: '2024-08-28', content: '# Team Meeting - Aug 28\r\n\r\n**Attendees:** Me, myself, I\r\n\r\n## Agenda\r\n1. Review sprint progress\r\n2. Discuss new features\r\n3. Assign tasks\r\n\r\n## Action Items\r\n- Ship file manager by Friday\r\n- Fix browser iframe bug' },
@@ -78,7 +80,8 @@ var fileSystem = {
       'readme.txt':         { type: 'file', size: 22,  modified: '2024-09-01', content: 'Your downloads go here.' },
       'install-notes.md':   { type: 'file', size: 95,  modified: '2024-09-02', content: '# MicroOS Installation\r\n\r\nNo installation needed!\r\nJust open index.html in a browser.\r\n\r\n> Works best in Chrome or Firefox.' },
       'data-export.json':   { type: 'file', size: 210, modified: '2024-09-03', content: '{\r\n  "exportDate": "2024-09-03",\r\n  "records": 42,\r\n  "format": "JSON",\r\n  "source": "MicroOS Database",\r\n  "checksum": "a1b2c3d4e5"\r\n}' },
-      'setup.bat':          { type: 'file', size: 60,  modified: '2024-09-04', content: '@echo off\r\necho Installing MicroOS...\r\necho Done!\r\npause' }
+      'setup.bat':          { type: 'file', size: 60,  modified: '2024-09-04', content: '@echo off\r\necho Installing MicroOS...\r\necho Done!\r\npause' },
+      'counter.app':        { type: 'file', size: 200, modified: '2024-09-12', content: 'var w = OS.createWindow("Counter App", 240, 170, "<div style=\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;background:#ece9d8\'><div class=\'cnt-display\' style=\'font-size:42px;color:#003399\'>0</div><div style=\'display:flex;gap:6px\'><button class=\'cnt-minus\' style=\'padding:4px 14px;cursor:pointer\'>-</button><button class=\'cnt-plus\' style=\'padding:4px 14px;cursor:pointer\'>+</button></div></div>");\nvar val = 0;\nvar display = w.el.querySelector(".cnt-display");\nw.el.querySelector(".cnt-plus").onclick = function() { display.textContent = ++val; };\nw.el.querySelector(".cnt-minus").onclick = function() { display.textContent = --val; };' }
     }},
     'Windows': { type: 'folder', children: {
       'system.ini':         { type: 'file', size: 78, modified: '2024-01-01', content: '[boot]\r\nshell=explorer.exe\r\n\r\n[display]\r\nresolution=1024x768\r\ncolors=32bit' },
@@ -104,6 +107,7 @@ var jsonSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1"
 var batSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#222" stroke="#555" stroke-width=".8"/><text x="8" y="10" text-anchor="middle" fill="#0c0" font-size="5" font-weight="700" font-family="monospace">&gt;_</text></svg>';
 var mdSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#f5f5ff" stroke="#44a" stroke-width=".8"/><text x="8" y="11" text-anchor="middle" fill="#339" font-size="7" font-weight="700" font-family="sans-serif">M</text></svg>';
 var imgSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#e8f0ff" stroke="#48c" stroke-width=".8"/><circle cx="6.5" cy="5.5" r="1.5" fill="#fc0"/><path d="M4 12l3-4 2 2 2-3 2 5z" fill="#4a8" opacity=".7"/></svg>';
+var appSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="1" width="12" height="14" rx="2" fill="#4a8acc" stroke="#2a6a9a" stroke-width=".8"/><rect x="4" y="3" width="8" height="5" rx="1" fill="#fff" opacity=".9"/><rect x="4" y="10" width="3" height="1.5" rx=".5" fill="#fff" opacity=".5"/><rect x="8" y="10" width="4" height="1.5" rx=".5" fill="#fff" opacity=".5"/></svg>';
 
 // ── Utility ──
 function escapeHtml(str) {
@@ -459,8 +463,71 @@ document.getElementById('tray-network').addEventListener('click', function () {
   showNotification('Network', 'Connected to MicroOS Network');
 });
 
+// ── OS Dialog Windows ──
+function createDialog(title, bodyHTML, dialogWidth) {
+  var overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay';
+  var dialogEl = document.createElement('div');
+  dialogEl.className = 'dialog-box';
+  dialogEl.style.width = (dialogWidth || 320) + 'px';
+  dialogEl.innerHTML =
+    '<div class="dialog-header"><span class="dialog-title">' + title + '</span>' +
+    '<button class="dialog-close-btn">' + btnCloseSvg + '</button></div>' +
+    '<div class="dialog-body">' + bodyHTML + '</div>';
+  overlay.appendChild(dialogEl);
+  document.body.appendChild(overlay);
+  function closeDialog() { overlay.remove(); }
+  dialogEl.querySelector('.dialog-close-btn').addEventListener('click', closeDialog);
+  return { overlay: overlay, el: dialogEl, close: closeDialog };
+}
+
+function osPrompt(message, defaultValue, callback) {
+  var inputId = 'dlg-input-' + Date.now();
+  var dialog = createDialog('MicroOS', 
+    '<div class="dialog-message">' + escapeHtml(message) + '</div>' +
+    '<input class="dialog-input" id="' + inputId + '" value="' + escapeHtml(defaultValue || '') + '" />' +
+    '<div class="dialog-buttons">' +
+    '<button class="dialog-btn dialog-btn-ok">OK</button>' +
+    '<button class="dialog-btn dialog-btn-cancel">Cancel</button></div>');
+  var inputEl = dialog.el.querySelector('.dialog-input');
+  inputEl.focus();
+  inputEl.select();
+  dialog.el.querySelector('.dialog-btn-ok').addEventListener('click', function () {
+    var value = inputEl.value;
+    dialog.close();
+    if (callback) callback(value);
+  });
+  dialog.el.querySelector('.dialog-btn-cancel').addEventListener('click', function () {
+    dialog.close();
+    if (callback) callback(null);
+  });
+  inputEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { dialog.close(); if (callback) callback(inputEl.value); }
+    if (e.key === 'Escape') { dialog.close(); if (callback) callback(null); }
+  });
+}
+
+function osConfirm(message, callback) {
+  var dialog = createDialog('MicroOS',
+    '<div class="dialog-message">' + escapeHtml(message) + '</div>' +
+    '<div class="dialog-buttons">' +
+    '<button class="dialog-btn dialog-btn-ok">Yes</button>' +
+    '<button class="dialog-btn dialog-btn-cancel">No</button></div>');
+  dialog.el.querySelector('.dialog-btn-ok').addEventListener('click', function () {
+    dialog.close();
+    if (callback) callback(true);
+  });
+  dialog.el.querySelector('.dialog-btn-cancel').addEventListener('click', function () {
+    dialog.close();
+    if (callback) callback(false);
+  });
+  dialog.el.querySelector('.dialog-btn-ok').focus();
+}
+
 // ── Expose API for apps.js ──
 MicroOS.createWindow = createWindow;
+MicroOS.prompt = osPrompt;
+MicroOS.confirm = osConfirm;
 MicroOS.showContextMenu = showContextMenu;
 MicroOS.clipboard = clipboard;
 MicroOS.registerApp = registerApp;
@@ -483,5 +550,6 @@ MicroOS.jsonSvg = jsonSvg;
 MicroOS.batSvg = batSvg;
 MicroOS.mdSvg = mdSvg;
 MicroOS.imgSvg = imgSvg;
+MicroOS.appSvg = appSvg;
 
 })();
