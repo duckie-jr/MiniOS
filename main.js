@@ -33,7 +33,7 @@ var currentWallpaper = 0;
 var fileSystem = {
   'C:': { type: 'folder', children: {
     'My Documents': { type: 'folder', children: {
-      'readme.md':          { type: 'file', size: 142, modified: '2024-01-15', content: '# Welcome to MicroOS\r\n\r\nA tiny desktop OS in your browser.\r\n\r\n## Getting Started\r\n\r\n- Double-click files to open them\r\n- Right-click the desktop for options\r\n- Files auto-save when you edit them' },
+      'readme.md':          { type: 'file', size: 142, modified: '2024-01-15', content: '# Welcome to Mini OS\r\n\r\nA tiny desktop OS in your browser.\r\n\r\n## Getting Started\r\n\r\n- Double-click files to open them\r\n- Right-click the desktop for options\r\n- Files auto-save when you edit them' },
       'notes.txt':          { type: 'file', size: 72,  modified: '2024-03-22', content: 'Shopping list:\r\n- Coffee\r\n- Code\r\n- More coffee\r\n- Mechanical keyboard\r\n- Monitor arm' },
       'budget.csv':         { type: 'file', size: 185, modified: '2024-07-20', content: 'Category,Monthly,Annual\r\nRent,1200,14400\r\nFood,400,4800\r\nCoffee,150,1800\r\nInternet,80,960\r\nGadgets,300,3600\r\nSavings,0,0\r\nTotal,2130,25560' },
       'diary.txt':          { type: 'file', size: 210, modified: '2024-09-05', content: 'Sept 5, 2024\r\nFinally got the OS working in a browser.\r\nThe file manager has columns now.\r\nI can actually edit files and they save back.\r\n\r\nSept 3, 2024\r\nStarted working on MicroOS.\r\nHow hard can it be?' },
@@ -42,10 +42,10 @@ var fileSystem = {
       'Projects':           { type: 'folder', children: {
         'todo.md':          { type: 'file', size: 170, modified: '2024-07-01', content: '# Project TODO\r\n\r\n- [ ] Build an OS in a browser\r\n- [x] Question life choices\r\n- [ ] Deploy to production\r\n- [ ] Write documentation\r\n- [x] Add minesweeper\r\n- [ ] Sleep at a normal hour' },
         'ideas.txt':        { type: 'file', size: 156, modified: '2024-08-14', content: 'App ideas:\r\n- Calculator with history tape\r\n- A game that is actually fun\r\n- Music player (needs audio API)\r\n- Chat app (talk to yourself)\r\n- Code editor with syntax highlight' },
-        'changelog.md':     { type: 'file', size: 220, modified: '2024-09-10', content: '# MicroOS Changelog\r\n\r\n## v1.2\r\n- File manager with detail view\r\n- Multiple file type support\r\n\r\n## v1.1\r\n- Added minesweeper, paint, clock\r\n\r\n## v1.0\r\n- Initial release\r\n- Notepad, Calculator, Terminal\r\n- Window manager with drag/resize' },
+        'changelog.md':     { type: 'file', size: 220, modified: '2024-09-10', content: '# Mini OS Changelog\r\n\r\n## v1.2\r\n- File manager with detail view\r\n- Multiple file type support\r\n\r\n## v1.1\r\n- Added minesweeper, paint, clock\r\n\r\n## v1.0\r\n- Initial release\r\n- Notepad, Calculator, Terminal\r\n- Window manager with drag/resize' },
         'bugs.log':         { type: 'file', size: 195, modified: '2024-09-08', content: '[2024-09-08 14:32] BUG: Paint canvas does not resize with window\r\n[2024-09-07 09:15] BUG: Terminal has no command history\r\n[2024-09-06 22:01] BUG: Clock app is too simple\r\n[2024-09-05 11:45] BUG: Browser might refuse to load some sites\r\n[2024-09-04 16:20] FIXED: File manager was text-only' },
-        'build.bat':        { type: 'file', size: 85,  modified: '2024-08-20', content: '@echo off\r\necho Building MicroOS...\r\necho Compiling assets...\r\ntimeout /t 2\r\necho Build complete!\r\npause' },
-        'config.json':      { type: 'file', size: 145, modified: '2024-08-22', content: '{\r\n  "appName": "MicroOS",\r\n  "version": "1.2.0",\r\n  "debug": false,\r\n  "theme": "xp-luna",\r\n  "bootTimeout": 3,\r\n  "defaultApps": ["notepad", "calculator", "files"]\r\n}' },
+        'build.bat':        { type: 'file', size: 85,  modified: '2024-08-20', content: '@echo off\r\necho Building Mini OS...\r\necho Compiling assets...\r\ntimeout /t 2\r\necho Build complete!\r\npause' },
+        'config.json':      { type: 'file', size: 145, modified: '2024-08-22', content: '{\r\n  "appName": "Mini OS",\r\n  "version": "1.2.0",\r\n  "debug": false,\r\n  "theme": "xp-luna",\r\n  "bootTimeout": 3,\r\n  "defaultApps": ["notepad", "calculator", "files"]\r\n}' },
         'hello.app':        { type: 'file', size: 160, modified: '2024-09-12', content: 'OS.prompt("What is your name?", "User", function(name) {\n  if (name) {\n    OS.createWindow("Hello App", 280, 150, "<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;font-weight:700;color:#003399;background:#ece9d8\'>Hello, " + name + "!</div>");\n    OS.showNotification("Hello App", "Greeted " + name);\n  }\n});' },
         'dice.app':         { type: 'file', size: 95,  modified: '2024-09-12', content: 'var roll = Math.floor(Math.random() * 6) + 1;\nOS.createWindow("Dice Roller", 200, 140, "<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;background:#ece9d8\'>" + roll + "</div>");' }
       }},
@@ -78,17 +78,17 @@ var fileSystem = {
     }},
     'Downloads': { type: 'folder', children: {
       'readme.txt':         { type: 'file', size: 22,  modified: '2024-09-01', content: 'Your downloads go here.' },
-      'install-notes.md':   { type: 'file', size: 95,  modified: '2024-09-02', content: '# MicroOS Installation\r\n\r\nNo installation needed!\r\nJust open index.html in a browser.\r\n\r\n> Works best in Chrome or Firefox.' },
-      'data-export.json':   { type: 'file', size: 210, modified: '2024-09-03', content: '{\r\n  "exportDate": "2024-09-03",\r\n  "records": 42,\r\n  "format": "JSON",\r\n  "source": "MicroOS Database",\r\n  "checksum": "a1b2c3d4e5"\r\n}' },
-      'setup.bat':          { type: 'file', size: 60,  modified: '2024-09-04', content: '@echo off\r\necho Installing MicroOS...\r\necho Done!\r\npause' },
+      'install-notes.md':   { type: 'file', size: 95,  modified: '2024-09-02', content: '# Mini OS Installation\r\n\r\nNo installation needed!\r\nJust open index.html in a browser.\r\n\r\n> Works best in Chrome or Firefox.' },
+      'data-export.json':   { type: 'file', size: 210, modified: '2024-09-03', content: '{\r\n  "exportDate": "2024-09-03",\r\n  "records": 42,\r\n  "format": "JSON",\r\n  "source": "Mini OS Database",\r\n  "checksum": "a1b2c3d4e5"\r\n}' },
+      'setup.bat':          { type: 'file', size: 60,  modified: '2024-09-04', content: '@echo off\r\necho Installing Mini OS...\r\necho Done!\r\npause' },
       'counter.app':        { type: 'file', size: 200, modified: '2024-09-12', content: 'var w = OS.createWindow("Counter App", 240, 170, "<div style=\'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;background:#ece9d8\'><div class=\'cnt-display\' style=\'font-size:42px;color:#003399\'>0</div><div style=\'display:flex;gap:6px\'><button class=\'cnt-minus\' style=\'padding:4px 14px;cursor:pointer\'>-</button><button class=\'cnt-plus\' style=\'padding:4px 14px;cursor:pointer\'>+</button></div></div>");\nvar val = 0;\nvar display = w.el.querySelector(".cnt-display");\nw.el.querySelector(".cnt-plus").onclick = function() { display.textContent = ++val; };\nw.el.querySelector(".cnt-minus").onclick = function() { display.textContent = --val; };' }
     }},
     'Windows': { type: 'folder', children: {
       'system.ini':         { type: 'file', size: 78, modified: '2024-01-01', content: '[boot]\r\nshell=explorer.exe\r\n\r\n[display]\r\nresolution=1024x768\r\ncolors=32bit' },
       'config.cfg':         { type: 'file', size: 55, modified: '2024-01-01', content: 'BOOT_TIMEOUT=3\r\nDEFAULT_WALLPAPER=0\r\nSOUND=OFF\r\nTHEME=luna' },
-      'boot.log':           { type: 'file', size: 245, modified: '2024-01-01', content: '[00.000] MicroOS Boot Loader v1.0\r\n[00.100] Checking hardware... OK\r\n[00.250] Loading kernel... OK\r\n[00.500] Initializing display... OK\r\n[00.800] Starting services... OK\r\n[01.200] Loading desktop... OK\r\n[01.500] Boot complete in 1.5s' },
-      'license.txt':        { type: 'file', size: 90, modified: '2024-01-01', content: 'MicroOS License\r\n===============\r\nThis software is provided as-is.\r\nFree to use, modify, and share.\r\nNo warranty expressed or implied.' },
-      'hosts.cfg':          { type: 'file', size: 70, modified: '2024-01-01', content: '127.0.0.1   localhost\r\n127.0.0.1   microos-pc\r\n192.168.1.1 gateway\r\n8.8.8.8     dns-primary' }
+      'boot.log':           { type: 'file', size: 245, modified: '2024-01-01', content: '[00.000] Mini OS Boot Loader v1.0\r\n[00.100] Checking hardware... OK\r\n[00.250] Loading kernel... OK\r\n[00.500] Initializing display... OK\r\n[00.800] Starting services... OK\r\n[01.200] Loading desktop... OK\r\n[01.500] Boot complete in 1.5s' },
+      'license.txt':        { type: 'file', size: 90, modified: '2024-01-01', content: 'Mini OS License\r\n===============\r\nThis software is provided as-is.\r\nFree to use, modify, and share.\r\nNo warranty expressed or implied.' },
+      'hosts.cfg':          { type: 'file', size: 70, modified: '2024-01-01', content: '127.0.0.1   localhost\r\n127.0.0.1   minios-pc\r\n192.168.1.1 gateway\r\n8.8.8.8     dns-primary' }
     }}
   }}
 };
@@ -108,6 +108,7 @@ var batSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" 
 var mdSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#f5f5ff" stroke="#44a" stroke-width=".8"/><text x="8" y="11" text-anchor="middle" fill="#339" font-size="7" font-weight="700" font-family="sans-serif">M</text></svg>';
 var imgSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#e8f0ff" stroke="#48c" stroke-width=".8"/><circle cx="6.5" cy="5.5" r="1.5" fill="#fc0"/><path d="M4 12l3-4 2 2 2-3 2 5z" fill="#4a8" opacity=".7"/></svg>';
 var appSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="1" width="12" height="14" rx="2" fill="#4a8acc" stroke="#2a6a9a" stroke-width=".8"/><rect x="4" y="3" width="8" height="5" rx="1" fill="#fff" opacity=".9"/><rect x="4" y="10" width="3" height="1.5" rx=".5" fill="#fff" opacity=".5"/><rect x="8" y="10" width="4" height="1.5" rx=".5" fill="#fff" opacity=".5"/></svg>';
+var svgIconSvg = '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="1" width="10" height="14" rx="1" fill="#fff0f5" stroke="#c4a" stroke-width=".8"/><circle cx="7" cy="6" r="2" fill="#e44" opacity=".7"/><rect x="5" y="9" width="6" height="3" rx="1" fill="#48c" opacity=".7"/></svg>';
 
 // ── Utility ──
 function escapeHtml(str) {
@@ -446,7 +447,7 @@ document.getElementById('shutdown-btn').addEventListener('click', function () {
   while (windows.length) windows[0].el.querySelector('.btn-close').click();
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-family:Tahoma,sans-serif;opacity:0;transition:opacity 1s';
-  overlay.textContent = 'MicroOS is shutting down...';
+  overlay.textContent = 'Mini OS is shutting down...';
   document.body.appendChild(overlay);
   requestAnimationFrame(function () { overlay.style.opacity = '1'; });
   setTimeout(function () {
@@ -460,7 +461,7 @@ document.getElementById('tray-volume').addEventListener('click', function () {
   showNotification('Volume', 'Volume: 75% ' + speakerSvg);
 });
 document.getElementById('tray-network').addEventListener('click', function () {
-  showNotification('Network', 'Connected to MicroOS Network');
+  showNotification('Network', 'Connected to Mini OS Network');
 });
 
 // ── OS Dialog Windows ──
@@ -483,7 +484,7 @@ function createDialog(title, bodyHTML, dialogWidth) {
 
 function osPrompt(message, defaultValue, callback) {
   var inputId = 'dlg-input-' + Date.now();
-  var dialog = createDialog('MicroOS', 
+  var dialog = createDialog('Mini OS', 
     '<div class="dialog-message">' + escapeHtml(message) + '</div>' +
     '<input class="dialog-input" id="' + inputId + '" value="' + escapeHtml(defaultValue || '') + '" />' +
     '<div class="dialog-buttons">' +
@@ -508,7 +509,7 @@ function osPrompt(message, defaultValue, callback) {
 }
 
 function osConfirm(message, callback) {
-  var dialog = createDialog('MicroOS',
+  var dialog = createDialog('Mini OS',
     '<div class="dialog-message">' + escapeHtml(message) + '</div>' +
     '<div class="dialog-buttons">' +
     '<button class="dialog-btn dialog-btn-ok">Yes</button>' +
@@ -551,5 +552,6 @@ MicroOS.batSvg = batSvg;
 MicroOS.mdSvg = mdSvg;
 MicroOS.imgSvg = imgSvg;
 MicroOS.appSvg = appSvg;
+MicroOS.svgIconSvg = svgIconSvg;
 
 })();
