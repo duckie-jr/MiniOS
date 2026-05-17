@@ -1115,4 +1115,192 @@ OS.registerApp('minesweeper', function buildMinesweeper() {
   initializeGrid(-1, -1);
 });
 
+// ── Code Editor ──
+OS.registerApp('codeeditor', function buildCodeEditor() {
+  var defaultCode = '// Welcome to Code Editor\n// Write JS, HTML, or CSS and hit Run\n\nvar greeting = "Hello from Mini OS!";\nOS.showNotification("Code Editor", greeting);';
+
+  var windowObj = OS.createWindow('Code Editor', 560, 400,
+    '<div style="display:flex;flex-direction:column;height:100%">' +
+    '<div style="display:flex;gap:4px;padding:3px 6px;background:#1e1e1e;border-bottom:1px solid #333;flex-shrink:0">' +
+      '<select class="code-lang" style="background:#333;color:#ccc;border:1px solid #555;font-size:10px;padding:1px 4px;font-family:inherit">' +
+        '<option value="javascript">JavaScript</option>' +
+        '<option value="html">HTML</option>' +
+        '<option value="css">CSS</option>' +
+      '</select>' +
+      '<button class="code-run-btn" style="background:#388e3c;color:#fff;border:none;padding:1px 10px;font-size:10px;cursor:pointer;border-radius:2px;font-family:inherit">Run</button>' +
+      '<span style="color:#666;font-size:10px;margin-left:auto" class="code-status">Ready</span>' +
+    '</div>' +
+    '<div style="flex:1;position:relative;overflow:hidden">' +
+      '<pre class="code-highlight" style="position:absolute;inset:0;margin:0;padding:8px;font-family:Consolas,monospace;font-size:12px;line-height:1.5;overflow:auto;color:#d4d4d4;background:#1e1e1e;white-space:pre-wrap;word-wrap:break-word;pointer-events:none"></pre>' +
+      '<textarea class="code-input" style="position:absolute;inset:0;margin:0;padding:8px;font-family:Consolas,monospace;font-size:12px;line-height:1.5;background:transparent;color:transparent;caret-color:#fff;border:none;outline:none;resize:none;white-space:pre-wrap;word-wrap:break-word;overflow:auto;tab-size:2" spellcheck="false"></textarea>' +
+    '</div></div>');
+
+  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+  var inputArea = windowObj.el.querySelector('.code-input');
+  var highlightArea = windowObj.el.querySelector('.code-highlight');
+  var langSelect = windowObj.el.querySelector('.code-lang');
+  var statusSpan = windowObj.el.querySelector('.code-status');
+  inputArea.value = defaultCode;
+
+  function highlightCode() {
+    var rawText = inputArea.value;
+    var escaped = OS.escapeHtml(rawText);
+    var language = langSelect.value;
+    var highlighted = escaped;
+
+    if (language === 'javascript') {
+      highlighted = highlighted
+        .replace(/(\/\/.*)/g, '<span style="color:#6a9955">$1</span>')
+        .replace(/\b(var|let|const|function|return|if|else|for|while|switch|case|break|default|new|this|typeof|instanceof|try|catch|throw|finally|class|extends|import|export|from|of|in|do|continue|null|undefined|true|false|NaN|Infinity)\b/g, '<span style="color:#569cd6">$1</span>')
+        .replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;|&#39;(?:[^&]|&(?!#39;))*?&#39;)/g, '<span style="color:#ce9178">$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span style="color:#b5cea8">$1</span>');
+    } else if (language === 'html') {
+      highlighted = highlighted
+        .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span style="color:#6a9955">$1</span>')
+        .replace(/(&lt;\/?[a-zA-Z][a-zA-Z0-9]*)/g, '<span style="color:#569cd6">$1</span>')
+        .replace(/(&gt;)/g, '<span style="color:#808080">$1</span>')
+        .replace(/(&quot;[^&]*?&quot;)/g, '<span style="color:#ce9178">$1</span>');
+    } else if (language === 'css') {
+      highlighted = highlighted
+        .replace(/(\/\*[\s\S]*?\*\/)/g, '<span style="color:#6a9955">$1</span>')
+        .replace(/([.#][a-zA-Z][\w-]*)/g, '<span style="color:#d7ba7d">$1</span>')
+        .replace(/([a-zA-Z-]+)(\s*:)/g, '<span style="color:#9cdcfe">$1</span>$2')
+        .replace(/\b(\d+\.?\d*)(px|em|rem|%|vh|vw|s|ms)?\b/g, '<span style="color:#b5cea8">$1$2</span>');
+    }
+
+    highlightArea.innerHTML = highlighted + '\n';
+  }
+
+  inputArea.addEventListener('input', highlightCode);
+  inputArea.addEventListener('scroll', function () {
+    highlightArea.scrollTop = inputArea.scrollTop;
+    highlightArea.scrollLeft = inputArea.scrollLeft;
+  });
+  inputArea.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      var start = inputArea.selectionStart;
+      inputArea.value = inputArea.value.substring(0, start) + '  ' + inputArea.value.substring(inputArea.selectionEnd);
+      inputArea.selectionStart = inputArea.selectionEnd = start + 2;
+      highlightCode();
+    }
+  });
+  langSelect.addEventListener('change', highlightCode);
+  highlightCode();
+
+  windowObj.el.querySelector('.code-run-btn').addEventListener('click', function () {
+    var codeText = inputArea.value;
+    var language = langSelect.value;
+    statusSpan.textContent = 'Running...';
+    statusSpan.style.color = '#4ec9b0';
+    try {
+      if (language === 'javascript') {
+        var runFunction = new Function('OS', codeText);
+        runFunction(OS);
+        statusSpan.textContent = 'Done';
+        statusSpan.style.color = '#4ec9b0';
+      } else if (language === 'html') {
+        var previewWindow = OS.createWindow('HTML Preview', 450, 350,
+          '<iframe style="width:100%;height:100%;border:none" sandbox="allow-same-origin"></iframe>');
+        previewWindow.el.querySelector('iframe').srcdoc = codeText;
+        statusSpan.textContent = 'Previewing';
+        statusSpan.style.color = '#4ec9b0';
+      } else if (language === 'css') {
+        var styleTag = document.createElement('style');
+        styleTag.textContent = codeText;
+        document.head.appendChild(styleTag);
+        statusSpan.textContent = 'CSS Applied';
+        statusSpan.style.color = '#4ec9b0';
+      }
+    } catch (runError) {
+      statusSpan.textContent = 'Error: ' + runError.message;
+      statusSpan.style.color = '#f44';
+    }
+  });
+});
+
+// ── Task Manager ──
+OS.registerApp('taskmanager', function buildTaskManager() {
+  var windowObj = OS.createWindow('Task Manager', 420, 320,
+    '<div style="display:flex;flex-direction:column;height:100%;background:#ece9d8">' +
+    '<div style="display:flex;gap:4px;padding:4px 6px;background:#ece9d8;border-bottom:1px solid #aca899;flex-shrink:0">' +
+      '<button class="tm-refresh" style="background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit">Refresh</button>' +
+      '<button class="tm-killall" style="background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit;color:#c00">End All</button>' +
+      '<span style="margin-left:auto;font-size:10px;color:#555;padding-top:3px" class="tm-count"></span>' +
+    '</div>' +
+    '<div style="display:flex;padding:2px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;flex-shrink:0">' +
+      '<span style="flex:2">Window Title</span>' +
+      '<span style="width:60px;text-align:center">Status</span>' +
+      '<span style="width:70px;text-align:right;padding-right:8px">Action</span>' +
+    '</div>' +
+    '<div class="tm-list" style="flex:1;overflow-y:auto;background:#fff"></div>' +
+    '</div>');
+
+  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+  var listElement = windowObj.el.querySelector('.tm-list');
+  var countSpan = windowObj.el.querySelector('.tm-count');
+
+  function renderTaskList() {
+    listElement.innerHTML = '';
+    countSpan.textContent = OS.windows.length + ' window(s)';
+
+    OS.windows.forEach(function (targetWindow) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;padding:3px 6px;font-size:11px;border-bottom:1px solid #eee';
+      var statusText = targetWindow.minimized ? 'Minimized' : (targetWindow.maximized ? 'Maximized' : 'Running');
+      var statusColor = targetWindow.minimized ? '#999' : '#2a2';
+
+      row.innerHTML =
+        '<span style="flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + OS.escapeHtml(targetWindow.title) + '</span>' +
+        '<span style="width:60px;text-align:center;color:' + statusColor + ';font-size:10px">' + statusText + '</span>' +
+        '<span style="width:70px;text-align:right;padding-right:4px"></span>';
+
+      var actionSpan = row.querySelector('span:last-child');
+      var focusButton = document.createElement('button');
+      focusButton.textContent = 'Focus';
+      focusButton.style.cssText = 'background:#4a8acc;color:#fff;border:none;padding:1px 6px;font-size:9px;cursor:pointer;border-radius:2px;margin-right:2px';
+      focusButton.addEventListener('click', function () {
+        targetWindow.minimized = false;
+        targetWindow.el.classList.remove('minimized');
+        targetWindow.el.style.zIndex = 9999;
+        renderTaskList();
+      });
+
+      var killButton = document.createElement('button');
+      killButton.textContent = 'End';
+      killButton.style.cssText = 'background:#c44;color:#fff;border:none;padding:1px 6px;font-size:9px;cursor:pointer;border-radius:2px';
+      killButton.addEventListener('click', function () {
+        var closeBtn = targetWindow.el.querySelector('.btn-close');
+        if (closeBtn) closeBtn.click();
+        setTimeout(renderTaskList, 50);
+      });
+
+      actionSpan.appendChild(focusButton);
+      actionSpan.appendChild(killButton);
+      listElement.appendChild(row);
+    });
+
+    if (OS.windows.length === 0) {
+      listElement.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:11px">No windows open</div>';
+    }
+  }
+
+  windowObj.el.querySelector('.tm-refresh').addEventListener('click', renderTaskList);
+  windowObj.el.querySelector('.tm-killall').addEventListener('click', function () {
+    OS.confirm('Close all windows?', function (yes) {
+      if (yes) {
+        while (OS.windows.length > 0) {
+          var closeBtn = OS.windows[0].el.querySelector('.btn-close');
+          if (closeBtn) closeBtn.click(); else break;
+        }
+        setTimeout(renderTaskList, 50);
+      }
+    });
+  });
+
+  renderTaskList();
+  var refreshInterval = setInterval(renderTaskList, 3000);
+  windowObj.el.querySelector('.btn-close').addEventListener('click', function () { clearInterval(refreshInterval); });
+});
+
 })();
