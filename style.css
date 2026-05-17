@@ -263,3 +263,24 @@ body{font-family:Tahoma,Geneva,sans-serif;overflow:hidden;height:100vh;backgroun
 .dialog-btn:hover{background:linear-gradient(180deg,#fff 0%,#e8e4da 100%)}
 .dialog-btn:active{background:#c8c4b8}
 .dialog-btn-ok{font-weight:700}
+
+/* ── Login Screen ── */
+#login-screen{position:fixed;inset:0;z-index:10000;background:linear-gradient(180deg,#0049a6 0%,#0066cc 30%,#3399ff 100%);display:flex;align-items:center;justify-content:center}
+.login-container{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 40px;background:rgba(255,255,255,.1);border-radius:12px;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(4px)}
+.login-logo svg{width:120px;height:96px}
+.login-title{color:#fff;font-size:22px;font-weight:700;letter-spacing:1px}
+.login-subtitle{color:rgba(255,255,255,.7);font-size:11px;margin-bottom:4px}
+.login-profiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:400px}
+.login-profile-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 16px;background:rgba(255,255,255,.15);border:2px solid transparent;border-radius:8px;cursor:pointer;color:#fff;min-width:80px;transition:background .15s,border-color .15s}
+.login-profile-btn:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4)}
+.login-profile-btn svg{width:36px;height:36px}
+.login-profile-btn span{font-size:11px;font-weight:700}
+.login-profile-delete{position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#c44;border:none;border-radius:50%;color:#fff;font-size:8px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.login-profile-btn{position:relative}
+.login-profile-btn:hover .login-profile-delete{display:flex}
+.login-new{display:flex;gap:6px;margin-top:6px}
+.login-new-input{padding:4px 8px;font-size:11px;border:2px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(255,255,255,.15);color:#fff;outline:none;font-family:inherit;width:150px}
+.login-new-input::placeholder{color:rgba(255,255,255,.5)}
+.login-new-input:focus{border-color:rgba(255,255,255,.6)}
+.login-new-btn{padding:4px 14px;font-size:11px;border:none;border-radius:4px;background:#fff;color:#0066cc;font-weight:700;cursor:pointer;font-family:inherit}
+.login-new-btn:hover{background:#e8f0ff}
