@@ -4,7 +4,7 @@ var OS = window.MicroOS;
 
 // ── Notepad ──
 OS.registerApp('notepad', function buildNotepad() {
-  var savedContent = localStorage.getItem('micro-notepad') || 'Welcome to MicroOS Notepad!';
+  var savedContent = localStorage.getItem('micro-notepad') || 'Welcome to Mini OS Notepad!';
   var windowObj = OS.createWindow('Untitled - Notepad', 480, 340,
     '<div class="notepad-menu"><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Help</span></div>' +
     '<textarea class="notepad-body">' + OS.escapeHtml(savedContent) + '</textarea>');
@@ -432,8 +432,8 @@ OS.registerApp('files', function buildFiles() {
 OS.registerApp('terminal', function buildTerminal() {
   var windowObj = OS.createWindow('Command Prompt', 540, 320,
     '<div class="terminal-body"><div class="terminal-output">' +
-    '<div class="terminal-line">MicroOS [Version 1.0.2600]</div>' +
-    '<div class="terminal-line">(C) MicroOS Corp. All rights reserved.</div>' +
+    '<div class="terminal-line">Mini OS [Version 1.0.2600]</div>' +
+    '<div class="terminal-line">(C) Mini OS Corp. All rights reserved.</div>' +
     '<div class="terminal-line">&nbsp;</div></div>' +
     '<div class="terminal-input-line"><span class="terminal-prompt">C:\\&gt; </span>' +
     '<input class="terminal-input" autofocus /></div></div>');
@@ -653,15 +653,15 @@ OS.registerApp('terminal', function buildTerminal() {
       break;
 
     case 'ver':
-      addLine('MicroOS [Version 1.0.2600]');
+      addLine('Mini OS [Version 1.0.2600]');
       break;
 
     case 'whoami':
-      addLine('MicroOS\\User');
+      addLine('MiniOS\\User');
       break;
 
     case 'hostname':
-      addLine('MICROS-PC');
+      addLine('MINIOS-PC');
       break;
 
     case 'tasklist':
@@ -681,8 +681,8 @@ OS.registerApp('terminal', function buildTerminal() {
       break;
 
     case 'systeminfo':
-      addLine('Host Name:         MICROS-PC');
-      addLine('OS Name:           MicroOS XP');
+      addLine('Host Name:         MINIOS-PC');
+      addLine('OS Name:           Mini OS');
       addLine('OS Version:        1.0 (Build 2600)');
       addLine('System Type:       Browser-based');
       addLine('Total Windows:     ' + OS.windows.length);
@@ -909,7 +909,7 @@ OS.registerApp('settings', function buildSettings() {
       '" data-i="' + index + '" style="background:' + wallpaper + '"></div>';
   });
   html += '</div></div><div class="settings-section"><div class="settings-label">System Information</div>' +
-    '<div class="settings-row"><span>OS Name</span><span>MicroOS XP</span></div>' +
+    '<div class="settings-row"><span>OS Name</span><span>Mini OS</span></div>' +
     '<div class="settings-row"><span>Version</span><span>1.0 (Build 2600)</span></div>' +
     '<div class="settings-row"><span>Open Windows</span><span>' + OS.windows.length + '</span></div></div></div>';
 
@@ -927,14 +927,10 @@ OS.registerApp('settings', function buildSettings() {
 
 // ── About ──
 OS.registerApp('about', function buildAbout() {
-  OS.createWindow('About MicroOS', 300, 220,
+  OS.createWindow('About Mini OS', 300, 220,
     '<div class="about-body">' +
-    '<svg viewBox="0 0 48 48" width="48" height="48">' +
-    '<rect x="4" y="4" width="18" height="18" rx="2" fill="#ff5f57"/>' +
-    '<rect x="26" y="4" width="18" height="18" rx="2" fill="#4a9ade"/>' +
-    '<rect x="4" y="26" width="18" height="18" rx="2" fill="#3aa03a"/>' +
-    '<rect x="26" y="26" width="18" height="18" rx="2" fill="#f5c542"/>' +
-    '</svg><h2>MicroOS XP</h2>' +
+    '<svg viewBox="0 0 48 48" width="48" height="48"><rect x="4" y="4" width="40" height="28" rx="4" fill="#2a6ad4"/><rect x="7" y="7" width="34" height="22" rx="2" fill="#5ac"/><path d="M15 22V12l9 6.5L33 12v10" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="16" y="34" width="16" height="3" rx="1" fill="#888"/><rect x="19" y="37" width="10" height="4" rx="1.5" fill="#aaa"/></svg>' +
+    '<h2>Mini OS</h2>' +
     '<p>Version 1.0 (Build 2600)<br>A tiny desktop OS in your browser.<br>Pure HTML, CSS &amp; JS. No server.</p></div>');
 });
 
