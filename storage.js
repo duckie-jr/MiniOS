@@ -126,9 +126,9 @@ window.addEventListener('beforeunload', function () {
 // ── Load saved filesystem on boot ──
 var didLoad = loadFilesystem();
 if (didLoad) {
-  console.log('MicroOS: Loaded saved filesystem from localStorage');
+  console.log('Mini OS: Loaded saved filesystem from localStorage');
 } else {
-  console.log('MicroOS: Using default filesystem (no save found)');
+  console.log('Mini OS: Using default filesystem (no save found)');
 }
 
 // ── Expose storage API ──
