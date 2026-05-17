@@ -1,0 +1,248 @@
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Tahoma,Geneva,sans-serif;overflow:hidden;height:100vh;background:#3a6ea5;user-select:none}
+
+/* ── Boot / Welcome Screen ── */
+#boot-screen{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s ease}
+#boot-screen.fade-out{opacity:0;pointer-events:none}
+.boot-logo{margin-bottom:20px}
+.boot-logo svg{width:200px;height:60px}
+.boot-text{color:#fff;font-size:14px;margin-bottom:30px;letter-spacing:1px}
+.boot-progress-track{width:200px;height:18px;border:1px solid #555;border-radius:2px;overflow:hidden;background:#000;padding:2px}
+.boot-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#0052cc,#3388ff,#0052cc);border-radius:1px;transition:width .3s linear;position:relative}
+.boot-progress-bar::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.15) 0px,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px);animation:bootShine 1s linear infinite}
+@keyframes bootShine{from{background-position:0 0}to{background-position:16px 0}}
+
+
+/* ── Desktop ── */
+#desktop{position:absolute;top:0;left:0;right:0;bottom:30px;background:linear-gradient(180deg,#245edb 0%,#3a6ea5 30%,#3a6ea5 100%);overflow:hidden}
+#desktop-icons{display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:10px;height:100%}
+.desktop-icon{display:flex;flex-direction:column;align-items:center;width:76px;padding:6px 4px;border-radius:3px;cursor:default;gap:2px;transition:background .15s}
+.desktop-icon:hover{background:rgba(255,255,255,.15)}
+.desktop-icon.selected{background:rgba(50,100,200,.5)}
+.desktop-icon .icon-img{width:32px;height:32px}
+.desktop-icon span{font-size:11px;color:#fff;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,.8);line-height:1.2}
+
+/* ── Context Menu ── */
+#context-menu{position:fixed;background:#fff;border:2px solid #888;box-shadow:2px 2px 6px rgba(0,0,0,.3);z-index:2000;min-width:160px;padding:2px 0;font-size:11px;display:none}
+#context-menu.visible{display:block}
+.ctx-item{padding:5px 12px 5px 28px;cursor:default;color:#000;position:relative;white-space:nowrap}
+.ctx-item:hover{background:#316ac5;color:#fff}
+.ctx-item.disabled{color:#888}
+.ctx-item.disabled:hover{background:transparent;color:#888}
+.ctx-separator{height:1px;background:#ccc;margin:3px 4px}
+.ctx-icon{position:absolute;left:6px;top:3px;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+
+/* ── Notification Toasts ── */
+#notification-area{position:fixed;bottom:40px;right:10px;z-index:3000;display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none}
+.notification-toast{background:linear-gradient(180deg,#fffde8 0%,#fff8c8 100%);border:1px solid #d4c860;border-radius:4px;padding:10px 14px;box-shadow:2px 2px 8px rgba(0,0,0,.2);font-size:11px;color:#333;pointer-events:auto;animation:toastIn .3s ease;max-width:260px;display:flex;align-items:flex-start;gap:8px}
+.notification-toast.fade-out{animation:toastOut .3s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(30px)}}
+.toast-icon{flex-shrink:0;width:20px;height:20px}
+.toast-content{flex:1}
+.toast-title{font-weight:700;margin-bottom:2px;color:#222}
+.toast-msg{color:#555;line-height:1.3}
+
+/* ── Taskbar (XP silver/blue) ── */
+#taskbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:linear-gradient(180deg,#1f53d1 0%,#3165d4 4%,#2e5bc6 8%,#1845b0 92%,#102e8a 100%);display:flex;align-items:stretch;z-index:1000;border-top:1px solid #5b8ee5}
+
+#start-btn{background:linear-gradient(180deg,#3c8f3c 0%,#40a140 30%,#2d8e2d 70%,#1e7a1e 100%);border:none;color:#fff;font-size:11px;font-weight:700;font-family:inherit;padding:0 12px;cursor:pointer;border-right:2px solid #0c5a0c;border-radius:0 8px 8px 0;text-shadow:1px 1px 1px rgba(0,0,0,.4);letter-spacing:.3px;display:flex;align-items:center;gap:3px;transition:filter .15s}
+#start-btn:hover{background:linear-gradient(180deg,#4caf4c 0%,#50b850 30%,#3a9f3a 70%,#2a8a2a 100%)}
+#start-btn:active{background:linear-gradient(180deg,#2a7a2a 0%,#348a34 30%,#246e24 70%,#1a5e1a 100%)}
+
+#taskbar-apps{flex:1;display:flex;gap:2px;padding:3px 4px;overflow-x:auto;align-items:stretch}
+.taskbar-app{padding:0 10px;font-size:11px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;background:linear-gradient(180deg,#3e72cc 0%,#2a5eb5 100%);border:1px solid rgba(255,255,255,.15);border-radius:2px;text-shadow:1px 1px 1px rgba(0,0,0,.3);max-width:160px;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
+.taskbar-app:hover{background:linear-gradient(180deg,#5588dd 0%,#3a6cc8 100%)}
+.taskbar-app.active{background:linear-gradient(180deg,#e8dfd4 0%,#d6c8b8 100%);color:#000;border-color:#999;text-shadow:none;font-weight:700}
+.taskbar-app.minimized{opacity:.7}
+
+#tray{display:flex;align-items:center;gap:6px;padding:0 8px;background:linear-gradient(180deg,#1a8cd8 0%,#1264a8 100%);border-left:2px solid rgba(255,255,255,.15)}
+.tray-icon{cursor:pointer;opacity:.85;transition:opacity .15s}
+.tray-icon:hover{opacity:1}
+.tray-icon svg{display:block}
+#taskbar-clock{font-size:11px;color:#fff;text-shadow:1px 1px 1px rgba(0,0,0,.3)}
+
+/* ── Start Menu (XP style, improved with icons) ── */
+#start-menu{position:fixed;bottom:30px;left:0;background:#fff;border:2px solid #2a5caa;border-radius:8px 8px 0 0;width:380px;box-shadow:3px 3px 12px rgba(0,0,0,.4);z-index:1001;overflow:hidden;transform-origin:bottom left}
+#start-menu.hidden{display:none!important}
+#start-menu.animate-in{animation:startMenuIn .2s ease}
+@keyframes startMenuIn{from{opacity:0;transform:scaleY(.9)}to{opacity:1;transform:scaleY(1)}}
+.start-banner{background:linear-gradient(180deg,#2458b5 0%,#1941a0 100%);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.start-avatar{width:36px;height:36px;border-radius:4px;border:2px solid rgba(255,255,255,.5);background:linear-gradient(135deg,#4a8acc,#6ab0ff);display:flex;align-items:center;justify-content:center}
+.start-avatar svg{width:24px;height:24px}
+.start-user-name{color:#fff;font-size:13px;font-weight:700;text-shadow:1px 1px 2px rgba(0,0,0,.4)}
+.start-columns{display:flex;min-height:220px}
+.start-left{flex:1;background:#fff;padding:6px 0;border-right:1px solid #d6d2c2}
+.start-right{width:140px;background:#d6dff0;padding:6px 0}
+.start-item{padding:6px 14px;font-size:11px;color:#000;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+.start-item:hover{background:#2f71cd;color:#fff}
+.start-item svg,.start-item .si-icon{width:20px;height:20px;flex-shrink:0}
+.start-right .start-item{font-weight:700;font-size:11px;color:#1a3a6a}
+.start-right .start-item:hover{background:#3a7ade;color:#fff}
+.start-divider{height:1px;background:#b8c8da;margin:4px 8px}
+.start-left-divider{height:1px;background:#d8d4cc;margin:6px 8px}
+.start-section-label{font-size:10px;color:#888;padding:2px 14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.start-footer{background:linear-gradient(180deg,#2a6ad4 0%,#1a4aa0 100%);padding:6px 12px;display:flex;justify-content:flex-end;gap:8px}
+.start-footer-btn{font-size:11px;color:#fff;cursor:pointer;padding:3px 12px;background:linear-gradient(180deg,#3a8a3a,#2a6a2a);border-radius:3px;border:1px solid #1a5a1a;text-shadow:1px 1px 1px rgba(0,0,0,.3);transition:filter .15s}
+.start-footer-btn:hover{filter:brightness(1.1)}
+.start-footer-btn.shutdown-btn{background:linear-gradient(180deg,#cc4444,#aa2222);border-color:#881111}
+.hidden{display:none!important}
+
+/* ── Window Animations ── */
+@keyframes windowOpen{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes windowClose{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.85)}}
+@keyframes windowMinimize{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(.5) translateY(100px)}}
+@keyframes windowRestore{from{opacity:0;transform:scale(.5) translateY(100px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* ── Windows (XP Luna blue) ── */
+.window{position:absolute;min-width:260px;min-height:150px;border:1px solid #0055ea;border-radius:8px 8px 0 0;box-shadow:2px 2px 10px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;background:#ece9d8;animation:windowOpen .2s ease}
+.window.focused{box-shadow:3px 3px 15px rgba(0,0,0,.45)}
+.window.minimized{display:none}
+.window.closing{animation:windowClose .15s ease forwards;pointer-events:none}
+.window.minimizing{animation:windowMinimize .2s ease forwards;pointer-events:none}
+.window.restoring{animation:windowRestore .2s ease}
+.window.maximized{border-radius:0;top:0!important;left:0!important;width:100%!important;height:calc(100vh - 30px)!important}
+
+.window-header{display:flex;align-items:center;height:26px;padding:0 4px 0 6px;background:linear-gradient(180deg,#0a246a 0%,#3a6ea5 6%,#4a8ac7 42%,#3a6ea5 96%,#1a4a8a 100%);cursor:default;flex-shrink:0}
+.window.focused .window-header{background:linear-gradient(180deg,#0a246a 0%,#0f5dca 6%,#3a89e5 42%,#1a6ede 96%,#0845a0 100%)}
+.window-title{flex:1;font-size:11px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:1px 1px 2px rgba(0,0,0,.5)}
+.window-btns{display:flex;gap:2px}
+.window-btn{width:21px;height:21px;border:1px solid rgba(255,255,255,.4);border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#3a8aee 0%,#2266cc 50%,#1a5ab8 100%);position:relative;transition:filter .1s}
+.window.focused .window-btn{background:linear-gradient(180deg,#468ccf 0%,#2a6ec8 50%,#1958a8 100%)}
+.window-btn:hover{background:linear-gradient(180deg,#5aa0f0 0%,#3a80dd 50%,#2a6acc 100%)}
+.btn-close{background:linear-gradient(180deg,#c46055 0%,#b5493e 50%,#943029 100%)!important}
+.btn-close:hover{background:linear-gradient(180deg,#e07065 0%,#d05a50 50%,#b04038 100%)!important}
+.btn-icon{width:9px;height:9px;pointer-events:none}
+
+.window-body{flex:1;overflow:auto;background:#fff;border:2px inset #c8c4b8}
+.window-body.window-body-flex{display:flex;flex-direction:column;overflow:hidden}
+.window-resize{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize}
+
+/* ── Notepad ── */
+.notepad-menu{display:flex;gap:0;padding:1px 2px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px}
+.notepad-menu span{padding:2px 8px;cursor:pointer;color:#000}
+.notepad-menu span:hover{background:#316ac5;color:#fff}
+.notepad-body{width:100%;height:100%;background:#fff;color:#000;border:none;outline:none;resize:none;padding:4px 6px;font-family:'Lucida Console',Consolas,monospace;font-size:12px;line-height:1.4}
+
+/* ── Calculator ── */
+.calc-wrap{display:flex;flex-direction:column;height:100%;background:#ece9d8;padding:6px}
+.calc-display{background:#e0e8d0;color:#000;text-align:right;padding:4px 8px;font-size:18px;font-family:'Lucida Console',monospace;border:2px inset #c8c4b8;margin-bottom:6px;min-height:28px;overflow:hidden}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;flex:1}
+.calc-btn{background:linear-gradient(180deg,#f0ede4 0%,#d8d4c8 100%);border:1px solid #999;border-radius:2px;color:#000;font-size:12px;padding:4px;cursor:pointer;font-family:inherit;transition:background .1s}
+.calc-btn:hover{background:linear-gradient(180deg,#fff 0%,#e8e4da 100%)}
+.calc-btn:active{background:#c8c4b8}
+.calc-btn.op{color:#0045aa;font-weight:700}
+.calc-btn.eq{background:linear-gradient(180deg,#e0ddd4 0%,#c0bcb0 100%);font-weight:700;color:#333}
+
+/* ── Files ── */
+.files-toolbar{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;flex-shrink:0}
+.files-back-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.files-back-btn:hover{background:#e8e4da}
+.files-path{background:#fff;border:2px inset #c8c4b8;padding:2px 6px;color:#000;flex:1;font-size:11px}
+.files-header{display:flex;align-items:center;padding:2px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
+.files-header span{padding:2px 4px;cursor:default}
+.files-col-name{flex:2;min-width:0}
+.files-col-size{width:70px;text-align:right;flex-shrink:0}
+.files-col-type{width:80px;flex-shrink:0}
+.files-col-date{width:80px;flex-shrink:0}
+.files-list{flex:1;overflow-y:auto;padding:2px 0}
+.file-item{display:flex;align-items:center;padding:2px 6px;cursor:default;font-size:11px;color:#000;border:1px solid transparent;transition:background .1s,color .1s}
+.file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
+.file-item.selected{background:#316ac5;color:#fff;border-color:#1a4a8a}
+.file-item-icon{width:16px;height:16px;flex-shrink:0;margin-right:4px}
+.file-item-name{flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item-size{width:70px;text-align:right;flex-shrink:0;color:inherit}
+.file-item-type{width:80px;flex-shrink:0;color:inherit}
+.file-item-date{width:80px;flex-shrink:0;color:inherit}
+.files-statusbar{display:flex;align-items:center;padding:2px 8px;background:#ece9d8;border-top:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0}
+.file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
+
+/* ── Terminal ── */
+.terminal-body{background:#0c0c0c;color:#c0c0c0;font-family:'Lucida Console',Consolas,monospace;font-size:12px;padding:4px 6px;height:100%;overflow-y:auto;line-height:1.4}
+.terminal-line{white-space:pre-wrap;word-break:break-all}
+.terminal-line.error{color:#ff6b6b}
+.terminal-line.success{color:#69db7c}
+.terminal-line.info{color:#74c0fc}
+.terminal-input-line{display:flex}
+.terminal-prompt{color:#c0c0c0;white-space:pre}
+.terminal-input{background:none;border:none;outline:none;color:#c0c0c0;font-family:'Lucida Console',Consolas,monospace;font-size:12px;flex:1;caret-color:#c0c0c0}
+
+/* ── Browser ── */
+.browser-bar{display:flex;gap:4px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;align-items:center;flex-shrink:0}
+.browser-label{font-size:11px;color:#000}
+.browser-url{flex:1;background:#fff;border:2px inset #c8c4b8;padding:2px 6px;color:#000;font-size:11px;outline:none;font-family:inherit}
+.browser-go{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.browser-go:hover{background:#e8e4da}
+.browser-frame{flex:1;border:none;background:#fff;width:100%;min-height:0}
+
+/* ── Paint ── */
+.paint-tools{display:flex;align-items:center;gap:4px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;flex-wrap:wrap}
+.paint-color{width:18px;height:18px;border:1px solid #888;cursor:pointer;transition:transform .1s}
+.paint-color:hover{transform:scale(1.15)}
+.paint-color.active{border:2px solid #000;outline:1px solid #fff}
+.paint-size{width:50px}
+.paint-tool-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 6px;cursor:pointer;font-size:10px;font-family:inherit;color:#000;transition:background .1s}
+.paint-tool-btn:hover{background:#e8e4da}
+.paint-tool-btn.active{background:#b8c8e0;border-color:#4a6a8a}
+.paint-clear{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:1px 8px;cursor:pointer;font-size:10px;font-family:inherit;margin-left:auto;color:#000;transition:background .1s}
+.paint-clear:hover{background:#e8e4da}
+.paint-canvas{background:#fff;cursor:crosshair;display:block}
+
+/* ── Clock ── */
+.clock-face{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;background:#ece9d8}
+.clock-analog{position:relative;width:120px;height:120px;border-radius:50%;background:#fff;border:3px solid #666;box-shadow:inset 0 0 6px rgba(0,0,0,.15)}
+.clock-hand{position:absolute;bottom:50%;left:50%;transform-origin:50% 100%;border-radius:2px}
+.clock-hour{width:4px;height:30px;background:#333;margin-left:-2px}
+.clock-minute{width:3px;height:42px;background:#555;margin-left:-1.5px}
+.clock-second{width:1px;height:48px;background:#cc0000;margin-left:-.5px}
+.clock-center{position:absolute;top:50%;left:50%;width:8px;height:8px;background:#333;border-radius:50%;transform:translate(-50%,-50%)}
+.clock-time{font-size:36px;font-weight:300;color:#003399;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.clock-date{font-size:12px;color:#555}
+
+/* ── Minesweeper ── */
+.mine-wrap{display:flex;flex-direction:column;height:100%;background:#c0c0c0;padding:6px}
+.mine-header{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;margin-bottom:4px;border:2px inset #ddd;background:#c0c0c0}
+.mine-counter{font-family:'Lucida Console',monospace;font-size:18px;color:#cc0000;background:#000;padding:2px 6px;min-width:44px;text-align:center;border:1px inset #666}
+.mine-reset{width:28px;height:28px;border:2px outset #ddd;background:#c0c0c0;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1}
+.mine-reset:active{border-style:inset}
+.mine-grid{display:inline-grid;border:3px inset #888;background:#c0c0c0;align-self:center}
+.mine-cell{width:20px;height:20px;border:2px outset #fff;background:#c0c0c0;cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Lucida Console',monospace}
+.mine-cell.revealed{border:1px solid #888;background:#d0d0d0;cursor:default}
+.mine-cell.mine{background:#ff4444}
+.mine-cell.flagged svg{display:block;margin:auto}
+.mine-cell[data-n="1"]{color:#0000ff}
+.mine-cell[data-n="2"]{color:#008000}
+.mine-cell[data-n="3"]{color:#ff0000}
+.mine-cell[data-n="4"]{color:#000080}
+.mine-cell[data-n="5"]{color:#800000}
+.mine-cell[data-n="6"]{color:#008080}
+.mine-cell[data-n="7"]{color:#000}
+.mine-cell[data-n="8"]{color:#808080}
+
+/* ── Settings / Control Panel ── */
+.settings-body{padding:10px;background:#fff;font-size:11px}
+.settings-section{margin-bottom:14px}
+.settings-label{font-size:11px;color:#003399;font-weight:700;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #ccc}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+.settings-row span{font-size:11px;color:#000}
+.wallpaper-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.wallpaper-opt{height:40px;border-radius:2px;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
+.wallpaper-opt:hover{border-color:#4a8acc}
+.wallpaper-opt.active{border-color:#003399}
+
+/* ── About ── */
+.about-body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;text-align:center;padding:20px;background:#ece9d8}
+.about-body h2{color:#003399;font-size:14px}
+.about-body p{color:#333;font-size:11px;line-height:1.5}
+.about-version{color:#888;font-size:10px;margin-top:4px}
+
+/* ── Scrollbar (XP style) ── */
+::-webkit-scrollbar{width:16px}
+::-webkit-scrollbar-track{background:#e8e4d8}
+::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#c8cad0 0%,#a8aab0 100%);border:1px solid #888;border-radius:0}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(90deg,#d0d2d8 0%,#b0b2b8 100%)}
+::-webkit-scrollbar-button{background:#d8d4c8;border:1px solid #999;height:16px}
+
+/* ── Upload Button ── */
+.files-upload-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.files-upload-btn:hover{background:#e8e4da}
