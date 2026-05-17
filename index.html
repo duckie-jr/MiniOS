@@ -1,0 +1,152 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MicroOS</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Boot Screen -->
+  <div id="boot-screen">
+    <div class="boot-logo">
+      <svg viewBox="0 0 200 60" width="200" height="60">
+        <rect x="10" y="10" width="18" height="18" rx="2" fill="#ff5f57"/>
+        <rect x="32" y="10" width="18" height="18" rx="2" fill="#4a9ade"/>
+        <rect x="10" y="32" width="18" height="18" rx="2" fill="#3aa03a"/>
+        <rect x="32" y="32" width="18" height="18" rx="2" fill="#f5c542"/>
+        <text x="62" y="38" fill="#fff" font-family="Tahoma,sans-serif" font-size="22" font-weight="700">MicroOS</text>
+        <text x="154" y="28" fill="#f5c542" font-family="Tahoma,sans-serif" font-size="10" font-weight="700">XP</text>
+      </svg>
+    </div>
+    <div class="boot-text">Starting up...</div>
+    <div class="boot-progress-track"><div class="boot-progress-bar" id="boot-bar"></div></div>
+  </div>
+
+  <div id="desktop">
+    <div id="desktop-icons">
+      <div class="desktop-icon" data-app="notepad">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="6" y="2" width="20" height="28" rx="1" fill="#fff" stroke="#6685a0" stroke-width="1.5"/><line x1="9" y1="8" x2="23" y2="8" stroke="#b0c4de" stroke-width="1"/><line x1="9" y1="12" x2="23" y2="12" stroke="#b0c4de" stroke-width="1"/><line x1="9" y1="16" x2="23" y2="16" stroke="#b0c4de" stroke-width="1"/><line x1="9" y1="20" x2="18" y2="20" stroke="#b0c4de" stroke-width="1"/><rect x="4" y="2" width="3" height="28" rx="1" fill="#4a7ebb"/></svg></div>
+        <span>Notepad</span>
+      </div>
+      <div class="desktop-icon" data-app="calculator">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="5" y="2" width="22" height="28" rx="2" fill="#c0cfe0" stroke="#5a7a9a" stroke-width="1.2"/><rect x="8" y="5" width="16" height="6" rx="1" fill="#d4e8d4" stroke="#6a9a6a" stroke-width=".8"/><rect x="8" y="14" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="14" y="14" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="20" y="14" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="8" y="19" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="14" y="19" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="20" y="19" width="4" height="3" rx=".5" fill="#6a9ada" stroke="#4a6a9a" stroke-width=".5"/><rect x="8" y="24" width="10" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/><rect x="20" y="24" width="4" height="3" rx=".5" fill="#e8e8e8" stroke="#999" stroke-width=".5"/></svg></div>
+        <span>Calculator</span>
+      </div>
+      <div class="desktop-icon" data-app="files">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><path d="M2 10V26a2 2 0 002 2h24a2 2 0 002-2V12a2 2 0 00-2-2H16l-3-4H4a2 2 0 00-2 2z" fill="#f5d76e" stroke="#c8a415" stroke-width="1"/><path d="M2 12h28v14a2 2 0 01-2 2H4a2 2 0 01-2-2z" fill="#fce589" opacity=".6"/></svg></div>
+        <span>My Documents</span>
+      </div>
+      <div class="desktop-icon" data-app="terminal">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="4" width="28" height="24" rx="2" fill="#0c0c0c" stroke="#555" stroke-width="1.2"/><polyline points="6,11 11,15 6,19" fill="none" stroke="#c0c0c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="13" y1="19" x2="22" y2="19" stroke="#c0c0c0" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <span>Command Prompt</span>
+      </div>
+      <div class="desktop-icon" data-app="settings">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="4" width="28" height="24" rx="2" fill="#e8e4df" stroke="#8a8078" stroke-width="1"/><rect x="5" y="8" width="8" height="8" rx="1" fill="#4a7ebb" opacity=".5"/><rect x="15" y="8" width="12" height="2" rx="1" fill="#ccc"/><rect x="15" y="12" width="9" height="2" rx="1" fill="#ccc"/><rect x="5" y="19" width="22" height="2" rx="1" fill="#ccc"/><rect x="5" y="23" width="16" height="2" rx="1" fill="#ccc"/></svg></div>
+        <span>Control Panel</span>
+      </div>
+      <div class="desktop-icon" data-app="browser">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><circle cx="16" cy="16" r="13" fill="#4a9ade" stroke="#2a6aaa" stroke-width="1.2"/><ellipse cx="16" cy="16" rx="5" ry="13" fill="none" stroke="#fff" stroke-width=".8" opacity=".6"/><line x1="3" y1="16" x2="29" y2="16" stroke="#fff" stroke-width=".8" opacity=".6"/><line x1="5" y1="10" x2="27" y2="10" stroke="#fff" stroke-width=".6" opacity=".4"/><line x1="5" y1="22" x2="27" y2="22" stroke="#fff" stroke-width=".6" opacity=".4"/></svg></div>
+        <span>Internet</span>
+      </div>
+      <div class="desktop-icon" data-app="paint">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="4" width="28" height="24" rx="1" fill="#fff" stroke="#888" stroke-width="1"/><circle cx="10" cy="12" r="3" fill="#ff4444"/><circle cx="18" cy="10" r="3" fill="#44aa44"/><circle cx="24" cy="14" r="3" fill="#4488ff"/><path d="M6 24 Q10 14 16 20 Q22 26 26 18" fill="none" stroke="#dd8800" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <span>Paint</span>
+      </div>
+      <div class="desktop-icon" data-app="clock">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><circle cx="16" cy="16" r="13" fill="#f0f0f0" stroke="#666" stroke-width="1.2"/><circle cx="16" cy="16" r="11" fill="#fff" stroke="#ccc" stroke-width=".5"/><line x1="16" y1="16" x2="16" y2="7" stroke="#333" stroke-width="1.8" stroke-linecap="round"/><line x1="16" y1="16" x2="22" y2="19" stroke="#333" stroke-width="1.2" stroke-linecap="round"/><line x1="16" y1="16" x2="12" y2="24" stroke="#cc0000" stroke-width=".6" stroke-linecap="round"/><circle cx="16" cy="16" r="1.5" fill="#333"/></svg></div>
+        <span>Clock</span>
+      </div>
+      <div class="desktop-icon" data-app="minesweeper">
+        <div class="icon-img"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="2" width="28" height="28" rx="2" fill="#c0c0c0" stroke="#888" stroke-width="1"/><circle cx="16" cy="16" r="7" fill="#333"/><line x1="16" y1="5" x2="16" y2="9" stroke="#333" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="23" x2="16" y2="27" stroke="#333" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="16" x2="9" y2="16" stroke="#333" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="16" x2="27" y2="16" stroke="#333" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="11" y2="11" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="21" y1="21" x2="24" y2="24" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="24" y1="8" x2="21" y2="11" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="11" y1="21" x2="8" y2="24" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><circle cx="16" cy="16" r="2.5" fill="#ff4444"/></svg></div>
+        <span>Minesweeper</span>
+      </div>
+    </div>
+    <div id="windows-container"></div>
+  </div>
+
+  <!-- Context Menu (populated by JS) -->
+  <div id="context-menu"></div>
+
+  <!-- Notification Area -->
+  <div id="notification-area"></div>
+
+  <div id="taskbar">
+    <button id="start-btn"><svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:middle;margin-right:3px"><rect x="1" y="1" width="6" height="6" fill="#ff5f57" rx="1"/><rect x="9" y="1" width="6" height="6" fill="#4fc3f7" rx="1"/><rect x="1" y="9" width="6" height="6" fill="#34c759" rx="1"/><rect x="9" y="9" width="6" height="6" fill="#f5c542" rx="1"/></svg>start</button>
+    <div id="taskbar-apps"></div>
+    <div id="tray">
+      <div class="tray-icon" id="tray-volume" title="Volume">
+        <svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 6v4h3l4 4V2L5 6H2z" fill="#fff" opacity=".9"/><path d="M11 4.5c.8.8 1.2 1.9 1.2 3.5s-.4 2.7-1.2 3.5" fill="none" stroke="#fff" stroke-width="1.2" opacity=".7"/><path d="M12.5 2.5c1.3 1.3 2 3.2 2 5.5s-.7 4.2-2 5.5" fill="none" stroke="#fff" stroke-width="1" opacity=".5"/></svg>
+      </div>
+      <div class="tray-icon" id="tray-network" title="Network">
+        <svg viewBox="0 0 16 16" width="14" height="14"><rect x="1" y="10" width="2" height="4" fill="#fff" opacity=".5"/><rect x="4" y="8" width="2" height="6" fill="#fff" opacity=".6"/><rect x="7" y="5" width="2" height="9" fill="#fff" opacity=".8"/><rect x="10" y="3" width="2" height="11" fill="#fff" opacity=".9"/><rect x="13" y="1" width="2" height="13" fill="#fff" opacity="1"/></svg>
+      </div>
+      <div id="taskbar-clock"></div>
+    </div>
+  </div>
+
+  <div id="start-menu" class="hidden">
+    <div class="start-banner">
+      <div class="start-avatar">
+        <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="8" r="4" fill="#fff" opacity=".9"/><ellipse cx="12" cy="20" rx="8" ry="5" fill="#fff" opacity=".7"/></svg>
+      </div>
+      <div class="start-user-name">MicroOS User</div>
+    </div>
+    <div class="start-columns">
+      <div class="start-left">
+        <div class="start-item" data-app="browser">
+          <svg viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8" fill="#4a9ade"/><ellipse cx="10" cy="10" rx="3" ry="8" fill="none" stroke="#fff" stroke-width=".6"/><line x1="2" y1="10" x2="18" y2="10" stroke="#fff" stroke-width=".6"/></svg>
+          Internet
+        </div>
+        <div class="start-item" data-app="notepad">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="4" y="1" width="12" height="18" rx="1" fill="#fff" stroke="#6685a0" stroke-width="1"/><line x1="6" y1="5" x2="14" y2="5" stroke="#b0c4de" stroke-width=".8"/><line x1="6" y1="8" x2="14" y2="8" stroke="#b0c4de" stroke-width=".8"/><line x1="6" y1="11" x2="12" y2="11" stroke="#b0c4de" stroke-width=".8"/><rect x="2.5" y="1" width="2" height="18" rx=".5" fill="#4a7ebb"/></svg>
+          Notepad
+        </div>
+        <div class="start-item" data-app="calculator">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="3" y="1" width="14" height="18" rx="1.5" fill="#c0cfe0" stroke="#5a7a9a" stroke-width=".8"/><rect x="5" y="3" width="10" height="4" rx=".5" fill="#d4e8d4"/><rect x="5" y="9" width="3" height="2" rx=".3" fill="#e8e8e8"/><rect x="9" y="9" width="3" height="2" rx=".3" fill="#e8e8e8"/><rect x="5" y="12" width="3" height="2" rx=".3" fill="#e8e8e8"/><rect x="9" y="12" width="3" height="2" rx=".3" fill="#e8e8e8"/></svg>
+          Calculator
+        </div>
+        <div class="start-item" data-app="paint">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="1" y="2" width="18" height="16" rx="1" fill="#fff" stroke="#888" stroke-width=".8"/><circle cx="6" cy="8" r="2" fill="#ff4444"/><circle cx="12" cy="7" r="2" fill="#44aa44"/><path d="M4 16 Q8 10 12 14" fill="none" stroke="#dd8800" stroke-width="1.5"/></svg>
+          Paint
+        </div>
+        <div class="start-item" data-app="terminal">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="1" y="2" width="18" height="16" rx="1.5" fill="#0c0c0c" stroke="#555" stroke-width=".8"/><polyline points="4,7 7,10 4,13" fill="none" stroke="#c0c0c0" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="13" x2="14" y2="13" stroke="#c0c0c0" stroke-width="1.2"/></svg>
+          Command Prompt
+        </div>
+        <div class="start-left-divider"></div>
+        <div class="start-item" data-app="minesweeper">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="1" y="1" width="18" height="18" rx="1.5" fill="#c0c0c0" stroke="#888" stroke-width=".8"/><circle cx="10" cy="10" r="4.5" fill="#333"/><circle cx="10" cy="10" r="1.5" fill="#ff4444"/><line x1="10" y1="3" x2="10" y2="5.5" stroke="#333" stroke-width="1.5"/><line x1="10" y1="14.5" x2="10" y2="17" stroke="#333" stroke-width="1.5"/><line x1="3" y1="10" x2="5.5" y2="10" stroke="#333" stroke-width="1.5"/><line x1="14.5" y1="10" x2="17" y2="10" stroke="#333" stroke-width="1.5"/></svg>
+          Minesweeper
+        </div>
+        <div class="start-item" data-app="clock">
+          <svg viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8" fill="#f0f0f0" stroke="#666" stroke-width=".8"/><line x1="10" y1="10" x2="10" y2="5" stroke="#333" stroke-width="1.2"/><line x1="10" y1="10" x2="14" y2="12" stroke="#333" stroke-width=".8"/><circle cx="10" cy="10" r="1" fill="#333"/></svg>
+          Clock
+        </div>
+      </div>
+      <div class="start-right">
+        <div class="start-item" data-app="files">
+          <svg viewBox="0 0 20 20" width="20" height="20"><path d="M1 6V16a1.5 1.5 0 001.5 1.5h15a1.5 1.5 0 001.5-1.5V7.5A1.5 1.5 0 0017.5 6H10L8 3.5H2.5A1.5 1.5 0 001 5z" fill="#f5d76e" stroke="#c8a415" stroke-width=".7"/></svg>
+          My Documents
+        </div>
+        <div class="start-item" data-app="settings">
+          <svg viewBox="0 0 20 20" width="20" height="20"><rect x="1" y="2" width="18" height="16" rx="1.5" fill="#e8e4df" stroke="#8a8078" stroke-width=".8"/><rect x="3" y="5" width="5" height="5" rx=".5" fill="#4a7ebb" opacity=".5"/><rect x="10" y="5" width="7" height="1.5" rx=".5" fill="#ccc"/><rect x="10" y="8" width="5" height="1.5" rx=".5" fill="#ccc"/><rect x="3" y="13" width="14" height="1.5" rx=".5" fill="#ccc"/></svg>
+          Control Panel
+        </div>
+        <div class="start-divider"></div>
+        <div class="start-item" id="start-about">
+          <svg viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8" fill="#4a8acc" stroke="#2a6a9a" stroke-width=".8"/><text x="10" y="14" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="serif">i</text></svg>
+          About MicroOS
+        </div>
+      </div>
+    </div>
+    <div class="start-footer">
+      <span class="start-footer-btn" id="logoff-btn">Log Off</span>
+      <span class="start-footer-btn shutdown-btn" id="shutdown-btn">Shut Down</span>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+  <script src="apps.js"></script>
+</body>
+</html>
