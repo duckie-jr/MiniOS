@@ -246,3 +246,20 @@ body{font-family:Tahoma,Geneva,sans-serif;overflow:hidden;height:100vh;backgroun
 /* ── Upload Button ── */
 .files-upload-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
 .files-upload-btn:hover{background:#e8e4da}
+
+/* ── OS Dialog Windows ── */
+.dialog-overlay{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
+.dialog-box{background:#ece9d8;border:2px solid #0055ea;border-radius:8px 8px 0 0;box-shadow:4px 4px 16px rgba(0,0,0,.5);overflow:hidden;min-width:260px}
+.dialog-header{display:flex;align-items:center;height:26px;padding:0 4px 0 8px;background:linear-gradient(180deg,#0a246a 0%,#0f5dca 6%,#3a89e5 42%,#1a6ede 96%,#0845a0 100%)}
+.dialog-title{flex:1;font-size:11px;color:#fff;font-weight:700;text-shadow:1px 1px 2px rgba(0,0,0,.5)}
+.dialog-close-btn{width:21px;height:21px;border:1px solid rgba(255,255,255,.4);border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#c46055 0%,#b5493e 50%,#943029 100%)}
+.dialog-close-btn:hover{background:linear-gradient(180deg,#e07065 0%,#d05a50 50%,#b04038 100%)}
+.dialog-close-btn .btn-icon{width:9px;height:9px;pointer-events:none}
+.dialog-body{padding:16px 20px 14px}
+.dialog-message{font-size:11px;color:#000;margin-bottom:10px;line-height:1.4}
+.dialog-input{width:100%;padding:3px 6px;font-size:11px;font-family:inherit;border:2px inset #c8c4b8;background:#fff;color:#000;outline:none;margin-bottom:12px}
+.dialog-buttons{display:flex;justify-content:flex-end;gap:6px}
+.dialog-btn{padding:4px 20px;font-size:11px;font-family:inherit;border:1px solid #999;border-radius:2px;cursor:pointer;color:#000;background:linear-gradient(180deg,#f0ede4 0%,#d8d4c8 100%)}
+.dialog-btn:hover{background:linear-gradient(180deg,#fff 0%,#e8e4da 100%)}
+.dialog-btn:active{background:#c8c4b8}
+.dialog-btn-ok{font-weight:700}
