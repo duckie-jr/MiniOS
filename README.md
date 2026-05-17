@@ -1,4 +1,4 @@
-## MicroOS
+## MiniOS
 
 A fully functional desktop operating system that runs entirely in the browser. Built with pure HTML, CSS, and vanilla JavaScript — no frameworks, no build step, no server required. Inspired by the Windows XP aesthetic.
 
@@ -25,7 +25,7 @@ Open `index.html` in any modern browser. That's it.
 - **Clock** — live digital clock with date display
 - **Minesweeper** — classic 9x9 grid with timer, flags, and win detection
 - **Control Panel** — wallpaper picker and system info
-- **About MicroOS** — version info
+- **About MiniOS** — version info
 
 #### Virtual File System
 - **37 files** across **10 folders** with **13 different file types** (`.txt`, `.md`, `.csv`, `.html`, `.json`, `.bat`, `.log`, `.cfg`, `.ini`, `.jpg`, `.png`, `.bmp`, `.m3u`, `.app`)
