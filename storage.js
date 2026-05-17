@@ -69,6 +69,11 @@ function resetFilesystem() {
   if (activeUserName) {
     localStorage.removeItem(getUserFSKey(activeUserName));
     localStorage.removeItem(getUserSessionKey(activeUserName));
+    // Remove user from profiles list and clear active user
+    var profiles = getProfiles();
+    profiles = profiles.filter(function (name) { return name !== activeUserName; });
+    saveProfiles(profiles);
+    localStorage.removeItem(ACTIVE_USER_KEY);
   }
 }
 
