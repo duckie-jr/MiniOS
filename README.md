@@ -9,7 +9,7 @@ Open `index.html` in any modern browser. That's it.
 ### Features
 
 #### Window Manager
-- **Draggable, resizable windows** with minimize, maximize, and close buttons
+- **Draggable windows** with minimize, maximize, and close buttons
 - **Taskbar** with running app buttons, system tray (volume, network), and clock
 - **Start menu** with app launcher, user panel, and shutdown/log off
 - **Double-click titlebar** to maximize/restore
