@@ -495,6 +495,12 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('  systeminfo         System information');
       addLine('  calc <expr>        Evaluate math expression');
       addLine('  ipconfig           Show network info');
+      addLine('  save               Save filesystem to localStorage');
+      addLine('  load               Load filesystem from localStorage');
+      addLine('  export [file]      Download filesystem as .json');
+      addLine('  import             Load filesystem from a .json file');
+      addLine('  reset              Reset filesystem to factory defaults');
+      addLine('  bootcfg [file]     Set/show auto-load config file');
       break;
 
     case 'dir': case 'ls':
@@ -680,6 +686,70 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('   IPv4 Address. . . . . . : 192.168.1.' + Math.floor(Math.random() * 254 + 1));
       addLine('   Subnet Mask . . . . . . : 255.255.255.0');
       addLine('   Default Gateway . . . . : 192.168.1.1');
+      break;
+
+    case 'save':
+      if (OS.saveFilesystem()) { addLine('Filesystem saved to localStorage.', 'success'); }
+      else { addLine('Failed to save filesystem.', 'error'); }
+      break;
+
+    case 'load':
+      if (OS.loadFilesystem()) {
+        addLine('Filesystem loaded from localStorage.', 'success');
+        addLine('Reopen file manager to see changes.');
+      } else { addLine('No saved filesystem found.', 'error'); }
+      break;
+
+    case 'export':
+      var exportName = argString || 'microos-backup.json';
+      OS.exportFilesystem(exportName);
+      addLine('Exporting filesystem as ' + exportName + '...');
+      break;
+
+    case 'import':
+      addLine('Opening file picker...');
+      OS.importFilesystem(function (success, detail) {
+        if (success) {
+          addLine('Filesystem imported from ' + detail, 'success');
+          addLine('Reopen file manager to see changes.');
+          currentDirectory = ['C:'];
+          updatePrompt();
+        } else {
+          addLine('Import failed: ' + detail, 'error');
+        }
+        terminalBody.scrollTop = terminalBody.scrollHeight;
+      });
+      break;
+
+    case 'reset':
+      OS.confirm('Reset filesystem to factory defaults? All changes will be lost.', function (yes) {
+        if (yes) {
+          OS.resetFilesystem();
+          currentDirectory = ['C:'];
+          updatePrompt();
+          addLine('Filesystem reset to defaults.', 'success');
+          addLine('Reopen file manager to see changes.');
+          terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+      });
+      break;
+
+    case 'bootcfg':
+      if (argString) {
+        if (argString === 'clear' || argString === 'none') {
+          OS.setBootConfig(null);
+          addLine('Boot config cleared. Will use default filesystem on reset.');
+        } else {
+          OS.setBootConfig(argString);
+          addLine('Boot config set to: ' + argString);
+          addLine('On next load, this file will be imported automatically.');
+          addLine('Place your .json export in the Windows folder and reference it by name.');
+        }
+      } else {
+        var currentConfig = OS.getBootConfig();
+        if (currentConfig) { addLine('Current boot config: ' + currentConfig); }
+        else { addLine('No boot config set. Using localStorage or defaults.'); }
+      }
       break;
 
     case 'pwd':
