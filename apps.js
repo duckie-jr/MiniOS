@@ -114,7 +114,8 @@ OS.registerApp('files', function buildFiles() {
       '.jpg': 'JPEG Image', '.jpeg': 'JPEG Image', '.png': 'PNG Image',
       '.bmp': 'Bitmap', '.gif': 'GIF Image',
       '.mp3': 'Audio', '.wav': 'Audio', '.m3u': 'Playlist',
-      '.app': 'Application'
+      '.app': 'Application',
+      '.svg': 'SVG Image'
     };
     var dotIndex = name.lastIndexOf('.');
     if (dotIndex >= 0) {
@@ -134,6 +135,7 @@ OS.registerApp('files', function buildFiles() {
     if (lower.endsWith('.bat') || lower.endsWith('.cmd')) return OS.batSvg;
     if (lower.endsWith('.md')) return OS.mdSvg;
     if (lower.match(/\.(jpg|jpeg|png|bmp|gif)$/)) return OS.imgSvg;
+    if (lower.endsWith('.svg')) return OS.svgIconSvg;
     if (lower.endsWith('.app')) return OS.appSvg;
     return OS.fileSvg;
   }
@@ -185,6 +187,22 @@ OS.registerApp('files', function buildFiles() {
       });
       tableHtml += '</table></div>';
       OS.createWindow(name + ' - Spreadsheet', 460, 300, tableHtml);
+      return;
+    }
+
+    if (lowerName.endsWith('.svg')) {
+      var svgContent = content.trim();
+      var svgValid = svgContent.indexOf('<svg') >= 0;
+      if (svgValid) {
+        var svgWindow = OS.createWindow(name + ' - SVG Viewer', 420, 380,
+          '<div style="display:flex;flex-direction:column;height:100%;background:#f8f8f8">' +
+          '<div style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0">' + OS.escapeHtml(name) + ' - ' + OS.formatFileSize(fileData.size || 0) + '</div>' +
+          '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:repeating-conic-gradient(#e0e0e0 0% 25%,#fff 0% 50%) 0 0/16px 16px">' +
+          '<div class="svg-render-area">' + svgContent + '</div></div></div>');
+        svgWindow.el.querySelector('.window-body').classList.add('window-body-flex');
+      } else {
+        OS.showNotification('SVG Viewer', 'File does not contain valid SVG markup.');
+      }
       return;
     }
 
