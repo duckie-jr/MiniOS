@@ -142,18 +142,18 @@ body{font-family:Tahoma,Geneva,sans-serif;overflow:hidden;height:100vh;backgroun
 .files-header{display:flex;align-items:center;padding:2px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
 .files-header span{padding:2px 4px;cursor:default}
 .files-col-name{flex:2;min-width:0}
-.files-col-size{width:70px;text-align:right;flex-shrink:0}
-.files-col-type{width:80px;flex-shrink:0}
-.files-col-date{width:80px;flex-shrink:0}
+.files-col-size{width:70px;text-align:right;flex-shrink:0;padding-left:8px}
+.files-col-type{width:80px;flex-shrink:0;padding-left:8px}
+.files-col-date{width:80px;flex-shrink:0;padding-left:8px}
 .files-list{flex:1;overflow-y:auto;padding:2px 0}
 .file-item{display:flex;align-items:center;padding:2px 6px;cursor:default;font-size:11px;color:#000;border:1px solid transparent;transition:background .1s,color .1s}
 .file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
 .file-item.selected{background:#316ac5;color:#fff;border-color:#1a4a8a}
 .file-item-icon{width:16px;height:16px;flex-shrink:0;margin-right:4px}
 .file-item-name{flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-item-size{width:70px;text-align:right;flex-shrink:0;color:inherit}
-.file-item-type{width:80px;flex-shrink:0;color:inherit}
-.file-item-date{width:80px;flex-shrink:0;color:inherit}
+.file-item-size{width:70px;text-align:right;flex-shrink:0;color:inherit;padding-left:8px}
+.file-item-type{width:80px;flex-shrink:0;color:inherit;padding-left:8px}
+.file-item-date{width:80px;flex-shrink:0;color:inherit;padding-left:8px}
 .files-statusbar{display:flex;align-items:center;padding:2px 8px;background:#ece9d8;border-top:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0}
 .file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
 
