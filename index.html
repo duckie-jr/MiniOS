@@ -1,8 +1,8 @@
- <html lang="en">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MicroOS</title>
+  <title>Mini OS</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -10,14 +10,7 @@
   <!-- Boot Screen -->
   <div id="boot-screen">
     <div class="boot-logo">
-      <svg viewBox="0 0 200 60" width="200" height="60">
-        <rect x="10" y="10" width="18" height="18" rx="2" fill="#ff5f57"/>
-        <rect x="32" y="10" width="18" height="18" rx="2" fill="#4a9ade"/>
-        <rect x="10" y="32" width="18" height="18" rx="2" fill="#3aa03a"/>
-        <rect x="32" y="32" width="18" height="18" rx="2" fill="#f5c542"/>
-        <text x="62" y="38" fill="#fff" font-family="Tahoma,sans-serif" font-size="22" font-weight="700">MicroOS</text>
-        <text x="154" y="28" fill="#f5c542" font-family="Tahoma,sans-serif" font-size="10" font-weight="700">XP</text>
-      </svg>
+      <svg viewBox="0 0 200 60" width="200" height="60"><rect x="6" y="6" width="40" height="30" rx="4" fill="#2a6ad4"/><rect x="9" y="9" width="34" height="24" rx="2" fill="#5ac"/><path d="M16 26V14l9 7L34 14v12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="16" y="38" width="20" height="3" rx="1" fill="#888"/><rect x="20" y="41" width="12" height="3" rx="1" fill="#aaa"/><text x="58" y="30" fill="#fff" font-family="Tahoma,sans-serif" font-size="22" font-weight="700">Mini OS</text></svg>
     </div>
     <div class="boot-text">Starting up...</div>
     <div class="boot-progress-track"><div class="boot-progress-bar" id="boot-bar"></div></div>
@@ -72,7 +65,7 @@
   <div id="notification-area"></div>
 
   <div id="taskbar">
-    <button id="start-btn"><svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:middle;margin-right:3px"><rect x="1" y="1" width="6" height="6" fill="#ff5f57" rx="1"/><rect x="9" y="1" width="6" height="6" fill="#4fc3f7" rx="1"/><rect x="1" y="9" width="6" height="6" fill="#34c759" rx="1"/><rect x="9" y="9" width="6" height="6" fill="#f5c542" rx="1"/></svg>start</button>
+    <button id="start-btn"><svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:middle;margin-right:3px"><rect x="1" y="1" width="14" height="10" rx="2" fill="#2a6ad4"/><rect x="2.5" y="2.5" width="11" height="7" rx="1" fill="#5ac"/><path d="M5 7V4l2.5 2L10 4v3" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="5" y="12" width="6" height="1.5" rx=".5" fill="#888"/><rect x="6.5" y="13.5" width="3" height="1" rx=".5" fill="#aaa"/></svg>start</button>
     <div id="taskbar-apps"></div>
     <div id="tray">
       <div class="tray-icon" id="tray-volume" title="Volume">
@@ -90,7 +83,7 @@
       <div class="start-avatar">
         <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="8" r="4" fill="#fff" opacity=".9"/><ellipse cx="12" cy="20" rx="8" ry="5" fill="#fff" opacity=".7"/></svg>
       </div>
-      <div class="start-user-name">MicroOS User</div>
+      <div class="start-user-name">Mini OS User</div>
     </div>
     <div class="start-columns">
       <div class="start-left">
@@ -136,7 +129,7 @@
         <div class="start-divider"></div>
         <div class="start-item" id="start-about">
           <svg viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8" fill="#4a8acc" stroke="#2a6a9a" stroke-width=".8"/><text x="10" y="14" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="serif">i</text></svg>
-          About MicroOS
+          About Mini OS
         </div>
       </div>
     </div>
