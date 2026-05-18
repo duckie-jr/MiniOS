@@ -195,6 +195,97 @@ document.getElementById('desktop').addEventListener('click', function (e) {
     document.querySelectorAll('.desktop-icon.selected').forEach(function (el) { el.classList.remove('selected'); });
 });
 
+// ── Desktop Icon Dragging ──
+var iconArrangeMode = false;
+
+function enableIconArrange() {
+  iconArrangeMode = true;
+  var iconsContainer = document.getElementById('desktop-icons');
+  iconsContainer.style.position = 'relative';
+  var savedPositions = JSON.parse(localStorage.getItem('minios-icon-positions') || '{}');
+
+  for (var di = 0; di < deskIcons.length; di++) {
+    (function (icon, idx) {
+      icon.style.position = 'absolute';
+      icon.style.cursor = 'move';
+      icon.style.outline = '1px dashed rgba(255,255,255,.3)';
+      var appName = icon.getAttribute('data-app');
+      if (savedPositions[appName]) {
+        icon.style.left = savedPositions[appName].left;
+        icon.style.top = savedPositions[appName].top;
+      } else {
+        icon.style.left = '10px';
+        icon.style.top = (10 + idx * 80) + 'px';
+      }
+
+      var draggingIcon = false, iconDragX, iconDragY;
+      icon.addEventListener('mousedown', function (e) {
+        if (!iconArrangeMode) return;
+        draggingIcon = true;
+        iconDragX = e.clientX - icon.offsetLeft;
+        iconDragY = e.clientY - icon.offsetTop;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!draggingIcon) return;
+        icon.style.left = Math.max(0, e.clientX - iconDragX) + 'px';
+        icon.style.top = Math.max(0, e.clientY - iconDragY) + 'px';
+      });
+      document.addEventListener('mouseup', function () {
+        if (draggingIcon) {
+          draggingIcon = false;
+          saveIconPositions();
+        }
+      });
+    })(deskIcons[di], di);
+  }
+}
+
+function disableIconArrange() {
+  iconArrangeMode = false;
+  for (var di = 0; di < deskIcons.length; di++) {
+    deskIcons[di].style.cursor = 'default';
+    deskIcons[di].style.outline = '';
+  }
+}
+
+function saveIconPositions() {
+  var positions = {};
+  for (var di = 0; di < deskIcons.length; di++) {
+    var appName = deskIcons[di].getAttribute('data-app');
+    positions[appName] = { left: deskIcons[di].style.left, top: deskIcons[di].style.top };
+  }
+  localStorage.setItem('minios-icon-positions', JSON.stringify(positions));
+}
+
+function loadIconPositions() {
+  var saved = localStorage.getItem('minios-icon-positions');
+  if (!saved) return;
+  var positions = JSON.parse(saved);
+  var iconsContainer = document.getElementById('desktop-icons');
+  iconsContainer.style.position = 'relative';
+  for (var di = 0; di < deskIcons.length; di++) {
+    var appName = deskIcons[di].getAttribute('data-app');
+    if (positions[appName]) {
+      deskIcons[di].style.position = 'absolute';
+      deskIcons[di].style.left = positions[appName].left;
+      deskIcons[di].style.top = positions[appName].top;
+    }
+  }
+}
+
+// Load saved positions on boot
+setTimeout(loadIconPositions, 100);
+
+// Load custom wallpaper on boot
+setTimeout(function () {
+  var savedCustomWallpaper = localStorage.getItem('minios-custom-wallpaper');
+  if (savedCustomWallpaper) {
+    document.getElementById('desktop').style.background = savedCustomWallpaper;
+    document.getElementById('desktop').style.backgroundSize = 'cover';
+  }
+}, 200);
+
 // ── Window Manager ──
 function createWindow(title, width, height, bodyHTML) {
   var winId = 'w' + (Date.now() + Math.random());
@@ -323,6 +414,12 @@ function openApp(name) {
 
 // ── Dynamic Context Menu ──
 var clipboard = { mode: null, name: null, data: null, sourcePath: null };
+var clipboardHistory = [];
+
+function addToClipboardHistory(name, mode) {
+  clipboardHistory.unshift({ name: name, mode: mode, time: new Date().toLocaleTimeString() });
+  if (clipboardHistory.length > 20) clipboardHistory.pop();
+}
 
 function showContextMenu(mouseX, mouseY, items) {
   contextMenu.innerHTML = '';
@@ -359,8 +456,14 @@ document.getElementById('desktop').addEventListener('contextmenu', function (e) 
   if (e.target.closest('.window') || e.target.closest('#taskbar') || e.target.closest('.desktop-icon')) return;
   e.preventDefault();
   showContextMenu(e.clientX, e.clientY, [
-    { label: 'View', disabled: true },
-    { label: 'Sort By', disabled: true },
+    { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
+      if (iconArrangeMode) { disableIconArrange(); showNotification('Desktop', 'Icons locked'); }
+      else { enableIconArrange(); showNotification('Desktop', 'Drag icons to rearrange. Right-click to lock.'); }
+    } },
+    { label: 'Reset Icon Positions', action: function () {
+      localStorage.removeItem('minios-icon-positions');
+      location.reload();
+    } },
     '---',
     { label: 'Refresh', action: function () { location.reload(); } },
     '---',
@@ -462,6 +565,11 @@ document.addEventListener('keydown', function (e) {
         break;
       }
     }
+  }
+
+  if (e.shiftKey && e.key === 'C' && !isTyping) {
+    e.preventDefault();
+    openApp('clipboardmanager');
   }
 
   if (e.shiftKey && e.key === 'Tab' && !isTyping) {
@@ -567,6 +675,8 @@ MicroOS.prompt = osPrompt;
 MicroOS.confirm = osConfirm;
 MicroOS.showContextMenu = showContextMenu;
 MicroOS.clipboard = clipboard;
+MicroOS.clipboardHistory = clipboardHistory;
+MicroOS.addToClipboardHistory = addToClipboardHistory;
 MicroOS.registerApp = registerApp;
 MicroOS.openApp = openApp;
 MicroOS.showNotification = showNotification;
