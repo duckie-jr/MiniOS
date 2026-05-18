@@ -1037,17 +1037,9 @@ OS.registerApp('terminal', function buildTerminal() {
           if (!secondYes) return;
           OS.resetFilesystem();
           addLine('All data for "' + currentUser + '" has been wiped.', 'success');
-          addLine('Logging out in 2 seconds...');
+          addLine('Reloading...');
           terminalBody.scrollTop = terminalBody.scrollHeight;
-          setTimeout(function () {
-            // Close all windows and go to login screen
-            while (OS.windows.length > 0) {
-              var closeBtn = OS.windows[0].el.querySelector('.btn-close');
-              if (closeBtn) closeBtn.click(); else break;
-            }
-            document.querySelector('#start-menu').classList.add('hidden');
-            location.reload();
-          }, 2000);
+          setTimeout(function () { location.reload(); }, 500);
         });
       });
       break;
