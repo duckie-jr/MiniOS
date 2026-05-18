@@ -449,7 +449,53 @@ function showContextMenu(mouseX, mouseY, items) {
 document.addEventListener('click', function () { contextMenu.classList.remove('visible'); });
 document.addEventListener('contextmenu', function (e) {
   if (!e.target.closest('#context-menu')) contextMenu.classList.remove('visible');
+  // Global fallback: if right-click is on desktop area, show desktop menu
+  var clickedOnDesktop = e.target.id === 'desktop' || e.target.id === 'desktop-icons' || (e.target.closest('#desktop') && !e.target.closest('.window') && !e.target.closest('#taskbar') && !e.target.closest('#start-menu') && !e.target.closest('.desktop-icon') && !e.target.closest('#context-menu'));
+  if (clickedOnDesktop) {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, [
+      { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
+        if (iconArrangeMode) { disableIconArrange(); showNotification('Desktop', 'Icons locked'); }
+        else { enableIconArrange(); showNotification('Desktop', 'Drag icons to rearrange. Right-click to lock.'); }
+      } },
+      { label: 'Reset Icon Positions', action: function () { localStorage.removeItem('minios-icon-positions'); location.reload(); } },
+      '---',
+      { label: 'Refresh', action: function () { location.reload(); } },
+      '---',
+      { label: 'New Folder', icon: folderSvg, action: function () { openApp('files'); } },
+      { label: 'New Text Document', icon: fileSvg, action: function () { openApp('notepad'); } },
+      '---',
+      { label: 'Change Wallpaper', action: function () { openApp('settings'); } },
+      { label: 'Properties', action: function () { openApp('about'); } }
+    ]);
+  }
 });
+
+// ── Desktop menu button (fallback) ──
+var desktopMenuBtn = document.getElementById('desktop-menu-btn');
+if (desktopMenuBtn) {
+  desktopMenuBtn.addEventListener('mouseenter', function () { desktopMenuBtn.style.opacity = '1'; });
+  desktopMenuBtn.addEventListener('mouseleave', function () { desktopMenuBtn.style.opacity = '.4'; });
+  desktopMenuBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    showContextMenu(e.clientX - 160, e.clientY - 200, [
+      { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
+        if (iconArrangeMode) { disableIconArrange(); showNotification('Desktop', 'Icons locked'); }
+        else { enableIconArrange(); showNotification('Desktop', 'Drag icons to rearrange. Right-click to lock.'); }
+      } },
+      { label: 'Reset Icon Positions', action: function () { localStorage.removeItem('minios-icon-positions'); location.reload(); } },
+      '---',
+      { label: 'Refresh', action: function () { location.reload(); } },
+      '---',
+      { label: 'New Folder', icon: folderSvg, action: function () { openApp('files'); } },
+      { label: 'New Text Document', icon: fileSvg, action: function () { openApp('notepad'); } },
+      '---',
+      { label: 'Change Wallpaper', action: function () { openApp('settings'); } },
+      { label: 'Properties', action: function () { openApp('about'); } }
+    ]);
+  });
+}
 
 // ── Desktop background right-click ──
 document.getElementById('desktop').addEventListener('contextmenu', function (e) {
