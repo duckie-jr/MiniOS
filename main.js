@@ -197,6 +197,7 @@ document.getElementById('desktop').addEventListener('click', function (e) {
 
 // ── Desktop Icon Dragging ──
 var iconArrangeMode = false;
+var iconDragHandlersAttached = false;
 
 function enableIconArrange() {
   iconArrangeMode = true;
@@ -205,39 +206,60 @@ function enableIconArrange() {
   var savedPositions = JSON.parse(localStorage.getItem('minios-icon-positions') || '{}');
 
   for (var di = 0; di < deskIcons.length; di++) {
-    (function (icon, idx) {
-      icon.style.position = 'absolute';
-      icon.style.cursor = 'move';
-      icon.style.outline = '1px dashed rgba(255,255,255,.3)';
-      var appName = icon.getAttribute('data-app');
-      if (savedPositions[appName]) {
-        icon.style.left = savedPositions[appName].left;
-        icon.style.top = savedPositions[appName].top;
-      } else {
-        icon.style.left = '10px';
-        icon.style.top = (10 + idx * 80) + 'px';
-      }
+    var icon = deskIcons[di];
+    icon.style.position = 'absolute';
+    icon.style.cursor = 'move';
+    icon.style.outline = '1px dashed rgba(255,255,255,.3)';
+    var appName = icon.getAttribute('data-app');
+    if (savedPositions[appName]) {
+      icon.style.left = savedPositions[appName].left;
+      icon.style.top = savedPositions[appName].top;
+    } else {
+      icon.style.left = '10px';
+      icon.style.top = (10 + di * 80) + 'px';
+    }
+  }
 
-      var draggingIcon = false, iconDragX, iconDragY;
-      icon.addEventListener('mousedown', function (e) {
-        if (!iconArrangeMode) return;
-        draggingIcon = true;
-        iconDragX = e.clientX - icon.offsetLeft;
-        iconDragY = e.clientY - icon.offsetTop;
-        e.preventDefault();
-      });
-      document.addEventListener('mousemove', function (e) {
-        if (!draggingIcon) return;
-        icon.style.left = Math.max(0, e.clientX - iconDragX) + 'px';
-        icon.style.top = Math.max(0, e.clientY - iconDragY) + 'px';
-      });
-      document.addEventListener('mouseup', function () {
-        if (draggingIcon) {
-          draggingIcon = false;
-          saveIconPositions();
-        }
-      });
-    })(deskIcons[di], di);
+  if (!iconDragHandlersAttached) {
+    iconDragHandlersAttached = true;
+    var draggedIcon = null;
+    var dragStartMouseX = 0;
+    var dragStartMouseY = 0;
+    var dragStartIconLeft = 0;
+    var dragStartIconTop = 0;
+
+    for (var i = 0; i < deskIcons.length; i++) {
+      (function (icon) {
+        icon.addEventListener('mousedown', function (e) {
+          if (!iconArrangeMode) return;
+          e.preventDefault();
+          draggedIcon = icon;
+          var containerRect = document.getElementById('desktop-icons').getBoundingClientRect();
+          dragStartMouseX = e.clientX;
+          dragStartMouseY = e.clientY;
+          dragStartIconLeft = parseInt(icon.style.left) || 0;
+          dragStartIconTop = parseInt(icon.style.top) || 0;
+        });
+      })(deskIcons[i]);
+    }
+
+    document.addEventListener('mousemove', function (e) {
+      if (!draggedIcon) return;
+      var deltaX = e.clientX - dragStartMouseX;
+      var deltaY = e.clientY - dragStartMouseY;
+      var containerRect = document.getElementById('desktop-icons').getBoundingClientRect();
+      var newLeft = Math.max(0, Math.min(containerRect.width - 76, dragStartIconLeft + deltaX));
+      var newTop = Math.max(0, Math.min(containerRect.height - 70, dragStartIconTop + deltaY));
+      draggedIcon.style.left = newLeft + 'px';
+      draggedIcon.style.top = newTop + 'px';
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (draggedIcon) {
+        draggedIcon = null;
+        saveIconPositions();
+      }
+    });
   }
 }
 
@@ -264,12 +286,16 @@ function loadIconPositions() {
   var positions = JSON.parse(saved);
   var iconsContainer = document.getElementById('desktop-icons');
   iconsContainer.style.position = 'relative';
+  var containerRect = iconsContainer.getBoundingClientRect();
   for (var di = 0; di < deskIcons.length; di++) {
     var appName = deskIcons[di].getAttribute('data-app');
     if (positions[appName]) {
       deskIcons[di].style.position = 'absolute';
-      deskIcons[di].style.left = positions[appName].left;
-      deskIcons[di].style.top = positions[appName].top;
+      var savedLeft = parseInt(positions[appName].left) || 0;
+      var savedTop = parseInt(positions[appName].top) || 0;
+      // Clamp to visible area
+      deskIcons[di].style.left = Math.max(0, Math.min(containerRect.width - 76, savedLeft)) + 'px';
+      deskIcons[di].style.top = Math.max(0, Math.min(containerRect.height - 70, savedTop)) + 'px';
     }
   }
 }
