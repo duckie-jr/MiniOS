@@ -53,11 +53,11 @@ OS.registerApp('notepad', function buildNotepad() {
     notepadBody.focus();
   });
 
-  notepadBody.addEventListener('keydown', function (e) {
-    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); showFindBar(); }
-  });
   windowObj.el.addEventListener('keydown', function (e) {
-    if (e.ctrlKey && e.key === 'f') { e.preventDefault(); showFindBar(); }
+    if (e.shiftKey && e.key === 'F' && document.activeElement !== notepadBody && document.activeElement !== findInput) {
+      e.preventDefault();
+      showFindBar();
+    }
   });
 });
 
