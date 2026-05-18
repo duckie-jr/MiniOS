@@ -476,6 +476,31 @@ document.getElementById('desktop').addEventListener('contextmenu', function (e) 
   ]);
 });
 
+// Backup: also listen on #desktop-icons for right-click since it covers the desktop
+document.getElementById('desktop-icons').addEventListener('contextmenu', function (e) {
+  if (e.target.closest('.desktop-icon') || e.target.closest('.window')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  showContextMenu(e.clientX, e.clientY, [
+    { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
+      if (iconArrangeMode) { disableIconArrange(); showNotification('Desktop', 'Icons locked'); }
+      else { enableIconArrange(); showNotification('Desktop', 'Drag icons to rearrange. Right-click to lock.'); }
+    } },
+    { label: 'Reset Icon Positions', action: function () {
+      localStorage.removeItem('minios-icon-positions');
+      location.reload();
+    } },
+    '---',
+    { label: 'Refresh', action: function () { location.reload(); } },
+    '---',
+    { label: 'New Folder', icon: folderSvg, action: function () { openApp('files'); } },
+    { label: 'New Text Document', icon: fileSvg, action: function () { openApp('notepad'); } },
+    '---',
+    { label: 'Change Wallpaper', action: function () { openApp('settings'); } },
+    { label: 'Properties', action: function () { openApp('about'); } }
+  ]);
+});
+
 // ── Desktop icon right-click ──
 for (var iconIdx = 0; iconIdx < deskIcons.length; iconIdx++) {
   (function (iconElement) {
@@ -566,6 +591,28 @@ document.addEventListener('keydown', function (e) {
         break;
       }
     }
+  }
+
+  if (e.shiftKey && e.key === 'M' && !isTyping) {
+    e.preventDefault();
+    showContextMenu(window.innerWidth / 2 - 80, window.innerHeight / 2 - 100, [
+    { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
+      if (iconArrangeMode) { disableIconArrange(); showNotification('Desktop', 'Icons locked'); }
+      else { enableIconArrange(); showNotification('Desktop', 'Drag icons to rearrange. Right-click to lock.'); }
+    } },
+    { label: 'Reset Icon Positions', action: function () {
+      localStorage.removeItem('minios-icon-positions');
+      location.reload();
+    } },
+    '---',
+    { label: 'Refresh', action: function () { location.reload(); } },
+    '---',
+    { label: 'New Folder', icon: folderSvg, action: function () { openApp('files'); } },
+    { label: 'New Text Document', icon: fileSvg, action: function () { openApp('notepad'); } },
+    '---',
+    { label: 'Change Wallpaper', action: function () { openApp('settings'); } },
+    { label: 'Properties', action: function () { openApp('about'); } }
+  ]);
   }
 
   if (e.shiftKey && e.key === 'C' && !isTyping) {
