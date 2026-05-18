@@ -453,7 +453,8 @@ document.addEventListener('contextmenu', function (e) {
 
 // ── Desktop background right-click ──
 document.getElementById('desktop').addEventListener('contextmenu', function (e) {
-  if (e.target.closest('.window') || e.target.closest('#taskbar') || e.target.closest('.desktop-icon')) return;
+  if (e.target.closest('.window') || e.target.closest('#taskbar')) return;
+  if (e.target.closest('.desktop-icon')) return;
   e.preventDefault();
   showContextMenu(e.clientX, e.clientY, [
     { label: iconArrangeMode ? 'Lock Icons' : 'Arrange Icons', action: function () {
