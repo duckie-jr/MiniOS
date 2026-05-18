@@ -89,7 +89,8 @@ var fileSystem = {
       'boot.log':           { type: 'file', size: 245, modified: '2024-01-01', content: '[00.000] Mini OS Boot Loader v1.0\r\n[00.100] Checking hardware... OK\r\n[00.250] Loading kernel... OK\r\n[00.500] Initializing display... OK\r\n[00.800] Starting services... OK\r\n[01.200] Loading desktop... OK\r\n[01.500] Boot complete in 1.5s' },
       'license.txt':        { type: 'file', size: 90, modified: '2024-01-01', content: 'Mini OS License\r\n===============\r\nThis software is provided as-is.\r\nFree to use, modify, and share.\r\nNo warranty expressed or implied.' },
       'hosts.cfg':          { type: 'file', size: 70, modified: '2024-01-01', content: '127.0.0.1   localhost\r\n127.0.0.1   minios-pc\r\n192.168.1.1 gateway\r\n8.8.8.8     dns-primary' }
-    }}
+    }},
+    'Recycle Bin': { type: 'folder', children: {} }
   }}
 };
 
@@ -441,6 +442,41 @@ function showNotification(title, message) {
   setTimeout(function () { toast.classList.add('fade-out'); setTimeout(function () { toast.remove(); }, 300); }, 5000);
 }
 
+// ── Keyboard Shortcuts ──
+document.addEventListener('keydown', function (e) {
+  // Don't trigger shortcuts when typing in inputs/textareas
+  var activeTag = document.activeElement ? document.activeElement.tagName : '';
+  var isTyping = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
+
+  if (e.shiftKey && e.key === 'N' && !isTyping) {
+    e.preventDefault();
+    openApp('notepad');
+  }
+
+  if (e.shiftKey && e.key === 'W' && !isTyping) {
+    e.preventDefault();
+    // Close the focused (topmost) window
+    for (var i = windows.length - 1; i >= 0; i--) {
+      if (windows[i].el.classList.contains('focused') && !windows[i].minimized) {
+        windows[i].el.querySelector('.btn-close').click();
+        break;
+      }
+    }
+  }
+
+  if (e.shiftKey && e.key === 'Tab' && !isTyping) {
+    e.preventDefault();
+    // Cycle to next window
+    if (windows.length < 2) return;
+    var focusedIndex = -1;
+    for (var j = 0; j < windows.length; j++) {
+      if (windows[j].el.classList.contains('focused')) { focusedIndex = j; break; }
+    }
+    var nextIndex = (focusedIndex + 1) % windows.length;
+    focusWindow(windows[nextIndex]);
+  }
+});
+
 // ── Shutdown ──
 document.getElementById('shutdown-btn').addEventListener('click', function () {
   startMenu.classList.add('hidden');
@@ -553,5 +589,6 @@ MicroOS.mdSvg = mdSvg;
 MicroOS.imgSvg = imgSvg;
 MicroOS.appSvg = appSvg;
 MicroOS.svgIconSvg = svgIconSvg;
+MicroOS.recycleBin = function () { return fileSystem['C:'].children['Recycle Bin']; };
 
 })();
