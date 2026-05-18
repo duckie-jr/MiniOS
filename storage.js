@@ -65,15 +65,15 @@ function saveFilesystem() {
 }
 
 function resetFilesystem() {
-  OS.fileSystem['C:'] = deepClone(defaultFileSystem['C:']);
   if (activeUserName) {
-    localStorage.removeItem(getUserFSKey(activeUserName));
-    localStorage.removeItem(getUserSessionKey(activeUserName));
-    // Remove user from profiles list and clear active user
+    // Remove storage keys one at a time to avoid lag
+    try { localStorage.removeItem(getUserFSKey(activeUserName)); } catch (e) {}
+    try { localStorage.removeItem(getUserSessionKey(activeUserName)); } catch (e) {}
+    // Remove user from profiles list
     var profiles = getProfiles();
     profiles = profiles.filter(function (name) { return name !== activeUserName; });
     saveProfiles(profiles);
-    localStorage.removeItem(ACTIVE_USER_KEY);
+    try { localStorage.removeItem(ACTIVE_USER_KEY); } catch (e) {}
   }
 }
 
@@ -208,9 +208,11 @@ function loginAs(userName) {
   var userNameElement = document.querySelector('.start-user-name');
   if (userNameElement) userNameElement.textContent = userName;
 
-  // Hide login, show boot
+  // Hide login, go straight to desktop (boot already ran)
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('boot-screen').style.display = '';
+  document.getElementById('boot-screen').style.display = 'none';
+  document.getElementById('desktop').style.visibility = 'visible';
+  document.getElementById('taskbar').style.visibility = 'visible';
 
   // Restore windows after everything settles
   setTimeout(function () { restorePendingWindows(); }, 100);
