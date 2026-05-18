@@ -242,12 +242,87 @@ OS.registerApp('files', function buildFiles() {
       var svgContent = content.trim();
       var svgValid = svgContent.indexOf('<svg') >= 0;
       if (svgValid) {
-        var svgWindow = OS.createWindow(name + ' - SVG Viewer', 420, 380,
-          '<div style="display:flex;flex-direction:column;height:100%;background:#f8f8f8">' +
-          '<div style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0">' + OS.escapeHtml(name) + ' - ' + OS.formatFileSize(fileData.size || 0) + '</div>' +
-          '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:repeating-conic-gradient(#e0e0e0 0% 25%,#fff 0% 50%) 0 0/16px 16px">' +
-          '<div class="svg-render-area">' + svgContent + '</div></div></div>');
+        var svgZoom = 100;
+        var svgBgColor = 'repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0 0/16px 16px';
+        var svgFullHTML = '<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:' + svgBgColor + '}svg{max-width:100%;max-height:100%}</style></head><body>' + svgContent + '</body></html>';
+
+        var svgWindow = OS.createWindow(name + ' - SVG Viewer', 500, 440,
+          '<div style="display:flex;flex-direction:column;height:100%">' +
+          '<div style="display:flex;gap:4px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;flex-shrink:0;align-items:center;font-size:10px">' +
+            '<span style="color:#555">' + OS.escapeHtml(name) + ' - ' + OS.formatFileSize(fileData.size || 0) + '</span>' +
+            '<span style="flex:1"></span>' +
+            '<button class="svg-zoom-out" style="padding:1px 6px;font-size:10px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">-</button>' +
+            '<span class="svg-zoom-label" style="min-width:36px;text-align:center">100%</span>' +
+            '<button class="svg-zoom-in" style="padding:1px 6px;font-size:10px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">+</button>' +
+            '<button class="svg-zoom-fit" style="padding:1px 6px;font-size:10px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Fit</button>' +
+            '<span style="color:#ccc">|</span>' +
+            '<button class="svg-bg-toggle" style="padding:1px 6px;font-size:10px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">BG</button>' +
+            '<button class="svg-edit-btn" style="padding:1px 6px;font-size:10px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Edit</button>' +
+          '</div>' +
+          '<iframe class="svg-frame" style="flex:1;width:100%;border:none;background:#f8f8f8" sandbox="allow-same-origin"></iframe>' +
+          '</div>');
+
         svgWindow.el.querySelector('.window-body').classList.add('window-body-flex');
+        var svgFrame = svgWindow.el.querySelector('.svg-frame');
+        var zoomLabel = svgWindow.el.querySelector('.svg-zoom-label');
+        svgFrame.srcdoc = svgFullHTML;
+
+        function updateZoom() {
+          zoomLabel.textContent = svgZoom + '%';
+          try {
+            var svgEl = svgFrame.contentDocument.querySelector('svg');
+            if (svgEl) { svgEl.style.transform = 'scale(' + (svgZoom / 100) + ')'; svgEl.style.transformOrigin = 'center center'; }
+          } catch (zoomError) {}
+        }
+
+        svgWindow.el.querySelector('.svg-zoom-in').addEventListener('click', function () { svgZoom = Math.min(500, svgZoom + 25); updateZoom(); });
+        svgWindow.el.querySelector('.svg-zoom-out').addEventListener('click', function () { svgZoom = Math.max(25, svgZoom - 25); updateZoom(); });
+        svgWindow.el.querySelector('.svg-zoom-fit').addEventListener('click', function () { svgZoom = 100; updateZoom(); });
+
+        var bgStates = [
+          'repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0 0/16px 16px',
+          '#ffffff',
+          '#000000',
+          '#808080'
+        ];
+        var bgIndex = 0;
+        svgWindow.el.querySelector('.svg-bg-toggle').addEventListener('click', function () {
+          bgIndex = (bgIndex + 1) % bgStates.length;
+          try { svgFrame.contentDocument.body.style.background = bgStates[bgIndex]; } catch (bgError) {}
+        });
+
+        svgWindow.el.querySelector('.svg-edit-btn').addEventListener('click', function () {
+          var editWindow = OS.createWindow(name + ' - Edit SVG', 500, 350,
+            '<div style="display:flex;flex-direction:column;height:100%">' +
+            '<div style="display:flex;gap:4px;padding:3px 6px;background:#1e1e1e;border-bottom:1px solid #333;flex-shrink:0">' +
+              '<button class="svg-apply-btn" style="background:#388e3c;color:#fff;border:none;padding:1px 10px;font-size:10px;cursor:pointer;border-radius:2px;font-family:inherit">Apply</button>' +
+              '<span style="color:#666;font-size:10px;margin-left:auto" class="svg-edit-status">Edit SVG source below</span>' +
+            '</div>' +
+            '<textarea class="svg-edit-area" style="flex:1;margin:0;padding:8px;font-family:Consolas,monospace;font-size:12px;line-height:1.5;background:#1e1e1e;color:#d4d4d4;border:none;outline:none;resize:none;white-space:pre-wrap" spellcheck="false"></textarea>' +
+            '</div>');
+          editWindow.el.querySelector('.window-body').classList.add('window-body-flex');
+          var editArea = editWindow.el.querySelector('.svg-edit-area');
+          var editStatus = editWindow.el.querySelector('.svg-edit-status');
+          editArea.value = fileData.content || svgContent;
+
+          editWindow.el.querySelector('.svg-apply-btn').addEventListener('click', function () {
+            var newSource = editArea.value.trim();
+            if (newSource.indexOf('<svg') < 0) {
+              editStatus.textContent = 'No <svg> tag found';
+              editStatus.style.color = '#f44';
+              return;
+            }
+            fileData.content = newSource;
+            fileData.size = newSource.length;
+            var updatedHTML = '<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:' + bgStates[bgIndex] + '}svg{max-width:100%;max-height:100%}</style></head><body>' + newSource + '</body></html>';
+            svgFrame.srcdoc = updatedHTML;
+            svgZoom = 100;
+            updateZoom();
+            editStatus.textContent = 'Applied!';
+            editStatus.style.color = '#4ec9b0';
+          });
+        });
+
       } else {
         OS.showNotification('SVG Viewer', 'File does not contain valid SVG markup.');
       }
