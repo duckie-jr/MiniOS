@@ -633,7 +633,34 @@ OS.registerApp('terminal', function buildTerminal() {
     return parts;
   }
 
-  function runCommand(rawCmd) {
+  function executePipeline(fullCommand) {
+    var pipeSegments = fullCommand.split('|').map(function (s) { return s.trim(); });
+    if (pipeSegments.length === 1) {
+      runCommand(pipeSegments[0], null);
+      return;
+    }
+    // Capture output from first command
+    var capturedLines = [];
+    var originalAddLine = addLine;
+    addLine = function (text) { capturedLines.push(text); };
+    runCommand(pipeSegments[0], null);
+    addLine = originalAddLine;
+    var pipedOutput = capturedLines.join('\n');
+    // Feed into each subsequent command
+    for (var pipeIdx = 1; pipeIdx < pipeSegments.length; pipeIdx++) {
+      capturedLines = [];
+      if (pipeIdx < pipeSegments.length - 1) {
+        addLine = function (text) { capturedLines.push(text); };
+      }
+      runCommand(pipeSegments[pipeIdx], pipedOutput);
+      if (pipeIdx < pipeSegments.length - 1) {
+        addLine = originalAddLine;
+        pipedOutput = capturedLines.join('\n');
+      }
+    }
+  }
+
+  function runCommand(rawCmd, pipedInput) {
     var trimmed = rawCmd.trim();
     if (!trimmed) return;
     var firstSpace = trimmed.indexOf(' ');
@@ -671,6 +698,8 @@ OS.registerApp('terminal', function buildTerminal() {
       addLine('  export [file]      Download filesystem as .json');
       addLine('  import             Load filesystem from a .json file');
       addLine('  reset              Reset filesystem to factory defaults');
+      addLine('  write <file> <txt> Write text content to a file');
+      addLine('  grep <term>        Filter piped input (use with |)');
       addLine('  bootcfg [file]     Set/show auto-load config file');
       break;
 
@@ -966,6 +995,38 @@ OS.registerApp('terminal', function buildTerminal() {
       }
       break;
 
+    case 'write':
+      if (args.length < 2) { addLine('Usage: write <filename> <content...>', 'error'); break; }
+      var writeFileName = args[0];
+      var writeContent = argString.substring(argString.indexOf(' ') + 1);
+      var writeParent = resolveNode(currentDirectory);
+      if (!writeParent || !writeParent.children) { addLine('Cannot write to current directory.', 'error'); break; }
+      var writeNow = new Date();
+      writeParent.children[writeFileName] = {
+        type: 'file',
+        size: writeContent.length,
+        modified: writeNow.toISOString().slice(0, 10),
+        content: writeContent
+      };
+      addLine('Wrote ' + writeContent.length + ' bytes to ' + writeFileName);
+      break;
+
+    case 'grep':
+      if (!argString) { addLine('Usage: grep <term> (use with pipe: cat file | grep word)', 'error'); break; }
+      if (typeof pipedInput === 'string') {
+        var grepTerm = argString.toLowerCase();
+        var grepLines = pipedInput.split('\n');
+        var matchedLines = grepLines.filter(function (line) { return line.toLowerCase().indexOf(grepTerm) >= 0; });
+        if (matchedLines.length > 0) {
+          matchedLines.forEach(function (line) { addLine(line); });
+        } else {
+          addLine('No matches found for: ' + argString);
+        }
+      } else {
+        addLine('grep requires piped input. Example: cat file.txt | grep word', 'error');
+      }
+      break;
+
     case 'pwd':
       addLine(currentDirectory.join('\\'));
       break;
@@ -987,7 +1048,7 @@ OS.registerApp('terminal', function buildTerminal() {
       input.value = '';
       if (cmd.trim()) { commandHistory.push(cmd); historyIndex = commandHistory.length; }
       addLine(getPromptText() + cmd);
-      runCommand(cmd);
+      executePipeline(cmd);
       terminalBody.scrollTop = terminalBody.scrollHeight;
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -1121,17 +1182,38 @@ OS.registerApp('clock', function buildClockApp() {
 
 // ── Control Panel / Settings ──
 OS.registerApp('settings', function buildSettings() {
-  var html = '<div class="settings-body"><div class="settings-section"><div class="settings-label">Display</div><div class="wallpaper-grid">';
+  var html = '<div class="settings-body">' +
+    '<div class="settings-section"><div class="settings-label">Wallpaper Presets</div><div class="wallpaper-grid">';
   OS.wallpapers.forEach(function (wallpaper, index) {
     html += '<div class="wallpaper-opt' + (index === OS.getCurrentWallpaper() ? ' active' : '') +
       '" data-i="' + index + '" style="background:' + wallpaper + '"></div>';
   });
-  html += '</div></div><div class="settings-section"><div class="settings-label">System Information</div>' +
+  html += '</div></div>' +
+    '<div class="settings-section"><div class="settings-label">Custom Wallpaper</div>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-top:4px">' +
+      '<button class="wp-upload-btn" style="padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Upload Image...</button>' +
+      '<button class="wp-browse-btn" style="padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">From Files...</button>' +
+      '<button class="wp-color-btn" style="padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Solid Color...</button>' +
+    '</div>' +
+    '<div class="wp-preview" style="margin-top:6px;height:40px;border:1px solid #ccc;border-radius:2px;background:#3a6ea5"></div>' +
+    '</div>' +
+    '<div class="settings-section"><div class="settings-label">System Information</div>' +
     '<div class="settings-row"><span>OS Name</span><span>Mini OS</span></div>' +
     '<div class="settings-row"><span>Version</span><span>1.0 (Build 2600)</span></div>' +
     '<div class="settings-row"><span>Open Windows</span><span>' + OS.windows.length + '</span></div></div></div>';
 
-  var windowObj = OS.createWindow('Control Panel', 340, 300, html);
+  var windowObj = OS.createWindow('Control Panel', 380, 380, html);
+  var previewElement = windowObj.el.querySelector('.wp-preview');
+
+  function applyCustomWallpaper(cssValue) {
+    document.getElementById('desktop').style.background = cssValue;
+    document.getElementById('desktop').style.backgroundSize = 'cover';
+    previewElement.style.background = cssValue;
+    previewElement.style.backgroundSize = 'cover';
+    localStorage.setItem('minios-custom-wallpaper', cssValue);
+  }
+
+  // Preset wallpapers
   windowObj.el.querySelectorAll('.wallpaper-opt').forEach(function (el) {
     el.addEventListener('click', function () {
       windowObj.el.querySelector('.wallpaper-opt.active').classList.remove('active');
@@ -1139,8 +1221,100 @@ OS.registerApp('settings', function buildSettings() {
       var index = +el.getAttribute('data-i');
       OS.setCurrentWallpaper(index);
       document.getElementById('desktop').style.background = OS.wallpapers[index];
+      document.getElementById('desktop').style.backgroundSize = '';
+      previewElement.style.background = OS.wallpapers[index];
+      localStorage.removeItem('minios-custom-wallpaper');
     });
   });
+
+  // Upload image from computer
+  windowObj.el.querySelector('.wp-upload-btn').addEventListener('click', function () {
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        applyCustomWallpaper('url(' + reader.result + ') center/cover no-repeat');
+        OS.showNotification('Control Panel', 'Wallpaper set from ' + file.name);
+      };
+      reader.readAsDataURL(file);
+      document.body.removeChild(fileInput);
+    });
+    fileInput.click();
+  });
+
+  // Browse filesystem for image files
+  windowObj.el.querySelector('.wp-browse-btn').addEventListener('click', function () {
+    var browseWindow = OS.createWindow('Select Wallpaper', 360, 260,
+      '<div style="display:flex;flex-direction:column;height:100%;background:#ece9d8">' +
+      '<div style="padding:6px;font-size:11px;border-bottom:1px solid #aca899;flex-shrink:0">Select an image file from the filesystem:</div>' +
+      '<div class="wp-file-list" style="flex:1;overflow-y:auto;background:#fff;padding:4px"></div></div>');
+    browseWindow.el.querySelector('.window-body').classList.add('window-body-flex');
+    var fileListElement = browseWindow.el.querySelector('.wp-file-list');
+
+    function findImages(node, path, results) {
+      if (!node || !node.children) return;
+      Object.keys(node.children).forEach(function (name) {
+        var child = node.children[name];
+        var fullPath = path + '\\' + name;
+        var lower = name.toLowerCase();
+        if (lower.match(/\.(jpg|jpeg|png|bmp|gif|svg)$/) || lower.endsWith('.html')) {
+          results.push({ name: name, path: fullPath, content: child.content || '' });
+        }
+        if (child.type === 'folder') findImages(child, fullPath, results);
+      });
+    }
+
+    var imageFiles = [];
+    findImages(OS.fileSystem['C:'], 'C:', imageFiles);
+
+    if (imageFiles.length === 0) {
+      fileListElement.innerHTML = '<div style="padding:12px;text-align:center;color:#999;font-size:11px">No image files found in filesystem</div>';
+    } else {
+      imageFiles.forEach(function (imgFile) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 6px;cursor:pointer;font-size:11px;border-radius:2px';
+        row.innerHTML = '<span style="width:16px;height:16px;flex-shrink:0">' + OS.imgSvg + '</span>' +
+          '<span style="flex:1">' + OS.escapeHtml(imgFile.name) + '</span>' +
+          '<span style="color:#888;font-size:9px">' + OS.escapeHtml(imgFile.path) + '</span>';
+        row.addEventListener('mouseenter', function () { row.style.background = '#316ac5'; row.style.color = '#fff'; });
+        row.addEventListener('mouseleave', function () { row.style.background = ''; row.style.color = ''; });
+        row.addEventListener('click', function () {
+          if (imgFile.name.toLowerCase().endsWith('.svg') && imgFile.content.indexOf('<svg') >= 0) {
+            var svgDataUrl = 'data:image/svg+xml;base64,' + btoa(imgFile.content);
+            applyCustomWallpaper('url(' + svgDataUrl + ') center/cover no-repeat');
+          } else {
+            applyCustomWallpaper(imgFile.content);
+          }
+          OS.showNotification('Control Panel', 'Wallpaper set from ' + imgFile.name);
+          browseWindow.el.querySelector('.btn-close').click();
+        });
+        fileListElement.appendChild(row);
+      });
+    }
+  });
+
+  // Solid color picker
+  windowObj.el.querySelector('.wp-color-btn').addEventListener('click', function () {
+    OS.prompt('Enter a CSS color (e.g. #3a6ea5, darkblue, rgb(50,100,150)):', '#3a6ea5', function (colorValue) {
+      if (colorValue) {
+        applyCustomWallpaper(colorValue);
+        OS.showNotification('Control Panel', 'Wallpaper color set to ' + colorValue);
+      }
+    });
+  });
+
+  // Load current custom wallpaper into preview
+  var savedCustom = localStorage.getItem('minios-custom-wallpaper');
+  if (savedCustom) {
+    previewElement.style.background = savedCustom;
+    previewElement.style.backgroundSize = 'cover';
+  }
 });
 
 // ── About ──
@@ -1498,6 +1672,57 @@ OS.registerApp('findfiles', function buildFindFiles() {
   windowObj.el.querySelector('.search-btn').addEventListener('click', doSearch);
   searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
   searchInput.focus();
+});
+
+// ── Clipboard Manager ──
+OS.registerApp('clipboardmanager', function buildClipboardManager() {
+  var windowObj = OS.createWindow('Clipboard Manager', 320, 280,
+    '<div style="display:flex;flex-direction:column;height:100%;background:#ece9d8">' +
+    '<div style="padding:4px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;flex-shrink:0;display:flex;align-items:center">' +
+      '<span style="flex:1">Clipboard History</span>' +
+      '<button class="cm-clear" style="padding:1px 8px;font-size:10px;font-family:inherit;cursor:pointer;background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px">Clear</button>' +
+    '</div>' +
+    '<div class="cm-list" style="flex:1;overflow-y:auto;background:#fff;font-size:11px"></div>' +
+    '<div style="padding:2px 6px;background:#ece9d8;border-top:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0" class="cm-status"></div>' +
+    '</div>');
+
+  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+  var listElement = windowObj.el.querySelector('.cm-list');
+  var statusElement = windowObj.el.querySelector('.cm-status');
+
+  function renderHistory() {
+    listElement.innerHTML = '';
+    var history = OS.clipboardHistory;
+    statusElement.textContent = history.length + ' item(s) in history';
+
+    if (history.length === 0) {
+      listElement.innerHTML = '<div style="padding:16px;text-align:center;color:#999">No clipboard history yet.<br>Cut or copy files to see them here.</div>';
+      return;
+    }
+
+    history.forEach(function (entry, index) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid #eee';
+      var modeColor = entry.mode === 'cut' ? '#c44' : '#4a8acc';
+      var modeLabel = entry.mode === 'cut' ? 'CUT' : 'COPY';
+      row.innerHTML =
+        '<span style="background:' + modeColor + ';color:#fff;font-size:8px;padding:1px 4px;border-radius:2px;font-weight:700">' + modeLabel + '</span>' +
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + OS.escapeHtml(entry.name) + '</span>' +
+        '<span style="color:#999;font-size:9px;flex-shrink:0">' + entry.time + '</span>';
+      row.addEventListener('mouseenter', function () { row.style.background = '#e8e8f0'; });
+      row.addEventListener('mouseleave', function () { row.style.background = ''; });
+      listElement.appendChild(row);
+    });
+  }
+
+  windowObj.el.querySelector('.cm-clear').addEventListener('click', function () {
+    OS.clipboardHistory.length = 0;
+    renderHistory();
+  });
+
+  renderHistory();
+  var refreshInterval = setInterval(renderHistory, 2000);
+  windowObj.el.querySelector('.btn-close').addEventListener('click', function () { clearInterval(refreshInterval); });
 });
 
 })();
