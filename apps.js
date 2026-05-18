@@ -321,51 +321,90 @@ OS.registerApp('files', function buildFiles() {
   });
 
   // ── Right-click on file list or items ──
+  function isInRecycleBin() {
+    return currentPath.length === 2 && currentPath[1] === 'Recycle Bin';
+  }
+
+  function restoreFile(fileName, fileData) {
+    var originalPath = fileData._originalPath || 'C:\\My Documents';
+    var pathParts = originalPath.split('\\');
+    var targetNode = OS.fileSystem;
+    for (var ri = 0; ri < pathParts.length; ri++) {
+      targetNode = ri === 0 ? targetNode[pathParts[ri]] : (targetNode.children ? targetNode.children[pathParts[ri]] : null);
+      if (!targetNode) break;
+    }
+    if (!targetNode || !targetNode.children) targetNode = OS.fileSystem['C:'].children['My Documents'];
+    var restoreName = fileName;
+    while (targetNode.children[restoreName]) restoreName = restoreName.replace(/(\.[^.]+)?$/, ' (restored)$1');
+    delete fileData._originalPath;
+    targetNode.children[restoreName] = fileData;
+    var recycleBin = OS.recycleBin();
+    delete recycleBin.children[fileName];
+    OS.showNotification('Recycle Bin', 'Restored ' + fileName + ' to ' + originalPath);
+    render();
+  }
+
+  // ── Right-click on file list or items ──
   function showFileContextMenu(mouseX, mouseY, selectedName, selectedChild) {
     var parentNode = getCurrentNode();
     var menuItems = [];
+    var inBin = isInRecycleBin();
 
     if (selectedName) {
       var isFolder = selectedChild.type === 'folder';
-      menuItems.push({ label: 'Open', icon: isFolder ? OS.folderSvg : getFileIcon(selectedName), action: function () {
-        if (isFolder) { currentPath.push(selectedName); render(); }
-        else openFile(selectedName, selectedChild);
-      }});
-      menuItems.push('---');
-      menuItems.push({ label: 'Cut', action: function () {
-        OS.clipboard.mode = 'cut'; OS.clipboard.name = selectedName;
-        OS.clipboard.data = selectedChild; OS.clipboard.sourcePath = currentPath.slice();
-        OS.showNotification('File Manager', 'Cut: ' + selectedName);
-      }});
-      menuItems.push({ label: 'Copy', action: function () {
-        OS.clipboard.mode = 'copy'; OS.clipboard.name = selectedName;
-        OS.clipboard.data = selectedChild; OS.clipboard.sourcePath = currentPath.slice();
-      }});
-      menuItems.push('---');
-      menuItems.push({ label: 'Rename', action: function () {
-        OS.prompt('Rename "' + selectedName + '" to:', selectedName, function (newName) {
-          if (newName && newName !== selectedName && !parentNode.children[newName]) {
-            parentNode.children[newName] = parentNode.children[selectedName];
-            delete parentNode.children[selectedName];
-            render();
-          }
-        });
-      }});
-      menuItems.push({ label: 'Delete', action: function () {
-        OS.confirm('Move "' + selectedName + '" to Recycle Bin?', function (yes) {
-          if (yes) {
-            var recycleBin = OS.recycleBin();
-            if (recycleBin && recycleBin.children) {
-              var recycleName = selectedName;
-              while (recycleBin.children[recycleName]) recycleName = recycleName.replace(/(\.[^.]+)?$/, ' (2)$1');
-              recycleBin.children[recycleName] = parentNode.children[selectedName];
+
+      if (inBin) {
+        var origLocation = selectedChild._originalPath || 'Unknown';
+        menuItems.push({ label: 'Restore to ' + origLocation, action: function () { restoreFile(selectedName, selectedChild); } });
+        menuItems.push('---');
+        menuItems.push({ label: 'Delete Permanently', action: function () {
+          OS.confirm('Permanently delete "' + selectedName + '"?', function (yes) {
+            if (yes) { delete parentNode.children[selectedName]; render(); }
+          });
+        }});
+      } else {
+        menuItems.push({ label: 'Open', icon: isFolder ? OS.folderSvg : getFileIcon(selectedName), action: function () {
+          if (isFolder) { currentPath.push(selectedName); render(); }
+          else openFile(selectedName, selectedChild);
+        }});
+        menuItems.push('---');
+        menuItems.push({ label: 'Cut', action: function () {
+          OS.clipboard.mode = 'cut'; OS.clipboard.name = selectedName;
+          OS.clipboard.data = selectedChild; OS.clipboard.sourcePath = currentPath.slice();
+          OS.showNotification('File Manager', 'Cut: ' + selectedName);
+        }});
+        menuItems.push({ label: 'Copy', action: function () {
+          OS.clipboard.mode = 'copy'; OS.clipboard.name = selectedName;
+          OS.clipboard.data = selectedChild; OS.clipboard.sourcePath = currentPath.slice();
+        }});
+        menuItems.push('---');
+        menuItems.push({ label: 'Rename', action: function () {
+          OS.prompt('Rename "' + selectedName + '" to:', selectedName, function (newName) {
+            if (newName && newName !== selectedName && !parentNode.children[newName]) {
+              parentNode.children[newName] = parentNode.children[selectedName];
+              delete parentNode.children[selectedName];
+              render();
             }
-            delete parentNode.children[selectedName];
-            render();
-            OS.showNotification('Recycle Bin', selectedName + ' moved to Recycle Bin');
-          }
-        });
-      }});
+          });
+        }});
+        menuItems.push({ label: 'Delete', action: function () {
+          OS.confirm('Move "' + selectedName + '" to Recycle Bin?', function (yes) {
+            if (yes) {
+              var recycleBin = OS.recycleBin();
+              if (recycleBin && recycleBin.children) {
+                var recycleName = selectedName;
+                while (recycleBin.children[recycleName]) recycleName = recycleName.replace(/(\.[^.]+)?$/, ' (2)$1');
+                var itemToRecycle = parentNode.children[selectedName];
+                itemToRecycle._originalPath = currentPath.join('\\');
+                recycleBin.children[recycleName] = itemToRecycle;
+              }
+              delete parentNode.children[selectedName];
+              render();
+              OS.showNotification('Recycle Bin', selectedName + ' moved to Recycle Bin');
+            }
+          });
+        }});
+      }
     } else {
       // Clicked on empty space in the file list
       var hasPaste = OS.clipboard.mode && OS.clipboard.name;
@@ -409,6 +448,22 @@ OS.registerApp('files', function buildFiles() {
       menuItems.push({ label: 'Upload Files...', action: function () { hiddenFileInput.click(); } });
       menuItems.push('---');
       menuItems.push({ label: 'Refresh', action: function () { render(); } });
+
+      if (inBin) {
+        var binItemCount = Object.keys(parentNode.children || {}).length;
+        menuItems.push('---');
+        menuItems.push({ label: 'Empty Recycle Bin (' + binItemCount + ')', disabled: binItemCount === 0, action: function () {
+          OS.confirm('Permanently delete ' + binItemCount + ' item(s)?', function (yes) {
+            if (yes) { parentNode.children = {}; render(); OS.showNotification('Recycle Bin', 'Emptied'); }
+          });
+        }});
+        if (binItemCount > 0) {
+          menuItems.push({ label: 'Restore All', action: function () {
+            var itemNames = Object.keys(parentNode.children);
+            itemNames.forEach(function (itemName) { restoreFile(itemName, parentNode.children[itemName]); });
+          }});
+        }
+      }
     }
 
     OS.showContextMenu(mouseX, mouseY, menuItems);
