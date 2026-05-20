@@ -934,66 +934,245 @@ w.el.querySelector('#asciiinp').addEventListener('input', function() {
 ### Hacker Attack Simulation
 
 ```js
-var w = OS.createWindow("SECURITY BREACH", 500, 340, "<div id='hackterm' style='background:#000;color:#0f0;font-family:Consolas,monospace;font-size:11px;height:100%;padding:8px;overflow-y:auto;white-space:pre-wrap'></div>");
-w.el.style.left='60px'; w.el.style.top='30px';
+var allTimeouts = [], allIntervals = [];
+function hkTimeout(fn, ms) { var t = setTimeout(fn, ms); allTimeouts.push(t); return t; }
+function hkInterval(fn, ms) { var t = setInterval(fn, ms); allIntervals.push(t); return t; }
+
+// ── PHASE 0: Fullscreen terminal ──
+var w = OS.createWindow("SECURITY BREACH DETECTED", 600, 400, "<div id='hackterm' style='background:#000;color:#0f0;font-family:Consolas,monospace;font-size:11px;height:100%;padding:8px;overflow-y:auto;white-space:pre-wrap'></div>");
+w.el.style.left='40px'; w.el.style.top='20px';
 var term = w.el.querySelector('#hackterm');
 var fakeIPs = ['194.32.78.'+Math.floor(Math.random()*255),'103.45.192.'+Math.floor(Math.random()*255),'77.91.68.'+Math.floor(Math.random()*255)];
 var attackIP = fakeIPs[Math.floor(Math.random()*3)];
-var lines = [
-  {t:'[ALERT] Unauthorized connection detected on port 443',c:'#f44',d:0},
-  {t:'[ALERT] Source IP: '+attackIP+' (UNRESOLVED)',c:'#f44',d:400},
-  {t:'[SYSTEM] Firewall bypassed — injecting rootkit payload...',c:'#f44',d:900},
-  {t:'> Enumerating filesystem...',c:'#0f0',d:1800},
-  {t:'  C:\\Windows\\system.ini .............. ACCESSED',c:'#0f0',d:2200},
-  {t:'  C:\\My Documents\\contacts.json ...... EXFILTRATING',c:'#ff0',d:2600},
-  {t:'  C:\\My Documents\\budget.csv ......... EXFILTRATING',c:'#ff0',d:2900},
-  {t:'  C:\\My Documents\\diary.txt .......... EXFILTRATING',c:'#ff0',d:3200},
-  {t:'  C:\\My Documents\\Work\\invoice.csv ... EXFILTRATING',c:'#ff0',d:3500},
-  {t:'> Credential dump in progress...',c:'#0f0',d:4000},
-  {t:'  admin:$6$rounds=5000$salt$h4ck3d... CRACKED',c:'#f84',d:4500},
-  {t:'  root:$6$rounds=5000$salt$0wn3d.... CRACKED',c:'#f84',d:4900},
-  {t:'> Establishing reverse shell on '+attackIP+':4444',c:'#0f0',d:5500},
-  {t:'  [████████████████████████████] 100%',c:'#0f0',d:6000},
-  {t:'> Reverse shell active. Spawning remote session...',c:'#0f0',d:6600},
-  {t:'',c:'#0f0',d:7200},
-  {t:'remote@'+attackIP+' $ whoami',c:'#0f0',d:7400},
-  {t:'root',c:'#fff',d:7800},
-  {t:'remote@'+attackIP+' $ cat /etc/shadow',c:'#0f0',d:8300},
-  {t:'root:$6$xZpKl:19422:0:99999:7:::',c:'#fff',d:8700},
-  {t:'remote@'+attackIP+' $ echo "YOU HAVE BEEN OWNED"',c:'#0f0',d:9300},
-  {t:'',c:'#0f0',d:9800},
-  {t:'  ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗ ',c:'#f44',d:10000},
-  {t:'  ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗',c:'#f44',d:10050},
-  {t:'  ███████║███████║██║     █████╔╝ █████╗  ██║  ██║',c:'#f44',d:10100},
-  {t:'  ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██║  ██║',c:'#f44',d:10150},
-  {t:'  ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██████╔╝',c:'#f44',d:10200},
-  {t:'  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ',c:'#f44',d:10250},
-  {t:'',c:'#0f0',d:10500},
-  {t:'> Encrypting all files with AES-256...',c:'#f44',d:10800},
-  {t:'  [██████████                    ] 34%',c:'#f44',d:11400},
-  {t:'  [████████████████████          ] 67%',c:'#f44',d:12000},
-  {t:'  [████████████████████████████  ] 93%',c:'#f44',d:12600},
-  {t:'',c:'#0f0',d:13200},
-  {t:'  ...just kidding 😄 you\'re fine. Close this window.',c:'#0f0',d:13500},
-];
-var timeouts = [];
-lines.forEach(function(line) {
-  timeouts.push(setTimeout(function() {
+var fakeMAC = 'DE:AD:BE:EF:'+('0'+Math.floor(Math.random()*255).toString(16)).slice(-2).toUpperCase()+':'+('0'+Math.floor(Math.random()*255).toString(16)).slice(-2).toUpperCase();
+
+function addLine(text, color, delay) {
+  hkTimeout(function() {
     var el = document.createElement('div');
-    el.style.color = line.c;
-    el.textContent = line.t;
+    el.style.color = color || '#0f0';
+    el.textContent = text;
     term.appendChild(el);
     term.scrollTop = term.scrollHeight;
-  }, line.d));
+  }, delay);
+}
+
+// ── Fake scrolling hex dump in background ──
+var hexOverlay = document.createElement('div');
+hexOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:0;overflow:hidden;pointer-events:none;opacity:0.06;font-family:monospace;font-size:10px;color:#0f0;line-height:12px;white-space:pre';
+document.body.appendChild(hexOverlay);
+var hexIv = hkInterval(function() {
+  var line = '';
+  for (var i = 0; i < 80; i++) line += ('0'+Math.floor(Math.random()*256).toString(16)).slice(-2) + ' ';
+  hexOverlay.textContent += line + '\n';
+  if (hexOverlay.textContent.length > 20000) hexOverlay.textContent = hexOverlay.textContent.slice(-10000);
+}, 30);
+
+// ── PHASE 1: Initial breach ──
+addLine('[' + new Date().toISOString() + '] INTRUSION DETECTION SYSTEM v4.2.1', '#888', 0);
+addLine('[CRITICAL] Incoming SYN flood detected — 14,382 packets/sec', '#f44', 300);
+addLine('[CRITICAL] Source: ' + attackIP + ' (MAC: ' + fakeMAC + ')', '#f44', 600);
+addLine('[CRITICAL] GeoIP: Undisclosed — routing through 7 proxies', '#f44', 900);
+addLine('[WARNING] Port scan detected: 21,22,23,25,80,443,445,3306,3389,8080', '#ff0', 1300);
+addLine('[ALERT] Port 445 (SMB) — VULNERABLE. EternalBlue exploit matched.', '#f44', 1700);
+addLine('[SYSTEM] Firewall rule #4471 BYPASSED', '#f44', 2000);
+addLine('[SYSTEM] Firewall rule #4472 BYPASSED', '#f44', 2100);
+addLine('[SYSTEM] Firewall rule #4473 BYPASSED', '#f44', 2200);
+addLine('[SYSTEM] ALL FIREWALL RULES DISABLED', '#f00', 2400);
+addLine('', '#0f0', 2500);
+
+// ── PHASE 2: Payload delivery ──
+addLine('> Injecting payload: trojan_rootkit_x64.dll (348 KB)', '#0f0', 2800);
+addLine('  [████████████████████████████████] 100% — INJECTED', '#0f0', 3400);
+addLine('> Escalating privileges... NT AUTHORITY\\SYSTEM acquired', '#f84', 3800);
+addLine('> Disabling Windows Defender... DONE', '#f84', 4200);
+addLine('> Disabling Event Log... DONE', '#f84', 4400);
+addLine('> Installing keylogger on HID input stream... ACTIVE', '#f84', 4700);
+addLine('', '#0f0', 4900);
+
+// ── Notification spam starts ──
+hkTimeout(function() { OS.showNotification('⚠ FIREWALL DISABLED', 'All inbound rules have been deleted'); }, 2400);
+hkTimeout(function() { OS.showNotification('⚠ SECURITY BREACH', 'Remote connection from ' + attackIP); }, 3000);
+hkTimeout(function() { OS.showNotification('☠ ROOT ACCESS', 'NT AUTHORITY\\SYSTEM privileges granted to remote host'); }, 4000);
+
+// ── PHASE 3: File exfiltration — scan REAL filesystem ──
+addLine('> Enumerating filesystem for sensitive data...', '#0f0', 5000);
+var fileList = [];
+(function scanFS(node, path) {
+  if (!node || !node.children) return;
+  Object.keys(node.children).forEach(function(name) {
+    var child = node.children[name];
+    if (child.type === 'file') fileList.push({ name: name, path: path + '\\' + name, size: child.size || 0 });
+    if (child.type === 'folder') scanFS(child, path + '\\' + name);
+  });
+})(OS.fileSystem['C:'], 'C:');
+var exfilDelay = 5400;
+var exfilCount = Math.min(fileList.length, 18);
+for (var fi = 0; fi < exfilCount; fi++) {
+  (function(f, d) {
+    var tag = f.name.match(/\.(csv|json|txt|md|html|cfg|ini)$/i) ? 'EXFILTRATING' : 'SCANNING';
+    var color = tag === 'EXFILTRATING' ? '#ff0' : '#0f0';
+    addLine('  ' + f.path + (' ').repeat(Math.max(1, 48 - f.path.length)) + tag, color, d);
+  })(fileList[fi], exfilDelay + fi * 250);
+}
+exfilDelay += exfilCount * 250 + 300;
+addLine('> ' + fileList.length + ' files indexed. ' + exfilCount + ' files queued for upload.', '#ff0', exfilDelay);
+hkTimeout(function() { OS.showNotification('⚠ DATA EXFILTRATION', fileList.length + ' files found — uploading to ' + attackIP); }, exfilDelay);
+exfilDelay += 500;
+
+// ── PHASE 4: Credential dump ──
+addLine('', '#0f0', exfilDelay);
+addLine('> Dumping SAM database...', '#0f0', exfilDelay += 300);
+addLine('  Administrator:500:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::', '#f84', exfilDelay += 500);
+addLine('  Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::', '#f84', exfilDelay += 300);
+addLine('  User:1001:aad3b435b51404eeaad3b435b51404ee:e19ccf75ee54e06b06a5907af13cef42:::', '#f84', exfilDelay += 300);
+addLine('> Cracking hashes with rainbow tables...', '#0f0', exfilDelay += 400);
+addLine('  Administrator : P@ssw0rd123!    [CRACKED in 0.4s]', '#f44', exfilDelay += 600);
+addLine('  User          : ilovecats       [CRACKED in 0.1s]', '#f44', exfilDelay += 400);
+hkTimeout(function() { OS.showNotification('☠ CREDENTIALS STOLEN', 'Administrator password cracked: P@ssw0rd123!'); }, exfilDelay);
+exfilDelay += 500;
+
+// ── PHASE 5: Reverse shell ──
+addLine('', '#0f0', exfilDelay);
+addLine('> Establishing encrypted reverse shell to ' + attackIP + ':4444', '#0f0', exfilDelay += 300);
+addLine('  TLS handshake... OK', '#0f0', exfilDelay += 400);
+addLine('  Tunnel established (AES-256-GCM)', '#0f0', exfilDelay += 300);
+addLine('', '#0f0', exfilDelay += 200);
+addLine('remote@' + attackIP + ':~# whoami', '#0f0', exfilDelay += 500);
+addLine('root', '#fff', exfilDelay += 400);
+addLine('remote@' + attackIP + ':~# uname -a', '#0f0', exfilDelay += 500);
+addLine('MiniOS 1.0.2600 x86_64 Browser/JS kernel', '#fff', exfilDelay += 300);
+addLine('remote@' + attackIP + ':~# cat /etc/shadow', '#0f0', exfilDelay += 500);
+addLine('root:$6$xZpKl$9j3kF8dHq2mNpL:19422:0:99999:7:::', '#fff', exfilDelay += 300);
+addLine('remote@' + attackIP + ':~# ls /home/user/.ssh/', '#0f0', exfilDelay += 500);
+addLine('id_rsa  id_rsa.pub  authorized_keys  known_hosts', '#fff', exfilDelay += 300);
+addLine('remote@' + attackIP + ':~# cat /home/user/.ssh/id_rsa', '#0f0', exfilDelay += 400);
+addLine('-----BEGIN RSA PRIVATE KEY-----', '#f84', exfilDelay += 300);
+addLine('MIIEpAIBAAKCAQEA7v3b8x0fN2r+jK0qB5tv2mRhFOqPX3IRGK', '#f84', exfilDelay += 100);
+addLine('kD9sD7k3HxVFBc0r+ENCRYPTED+STOLEN+LOL+n7G8x0Kj3vB', '#f84', exfilDelay += 100);
+addLine('-----END RSA PRIVATE KEY-----', '#f84', exfilDelay += 100);
+exfilDelay += 400;
+
+// ── Screen starts shaking ──
+var shakeIv;
+hkTimeout(function() {
+  shakeIv = hkInterval(function() {
+    var x = (Math.random()-0.5)*8, y = (Math.random()-0.5)*8;
+    document.body.style.transform = 'translate('+x+'px,'+y+'px)';
+  }, 50);
+}, exfilDelay);
+
+// ── PHASE 6: Webcam prank ──
+addLine('', '#0f0', exfilDelay);
+addLine('remote@' + attackIP + ':~# enable_webcam --silent --stream', '#0f0', exfilDelay += 500);
+addLine('[WEBCAM] Device 0 activated — streaming to ' + attackIP + ':8443', '#f44', exfilDelay += 500);
+hkTimeout(function() { OS.showNotification('📷 WEBCAM ACTIVE', 'Your camera is being streamed to a remote server'); }, exfilDelay);
+addLine('[MIC] Audio input device activated — recording started', '#f44', exfilDelay += 400);
+hkTimeout(function() { OS.showNotification('🎤 MICROPHONE ACTIVE', 'Audio is being recorded and transmitted'); }, exfilDelay);
+exfilDelay += 600;
+
+// ── Glitch effects get worse ──
+var glitchIv = hkInterval(function() {
+  if (Math.random() > 0.5) {
+    document.body.style.filter = 'hue-rotate('+Math.floor(Math.random()*360)+'deg) saturate(3) brightness('+(0.5+Math.random())+')';;
+    hkTimeout(function(){ document.body.style.filter=''; }, 60 + Math.random()*100);
+  }
+}, 300);
+
+// ── PHASE 7: Fake file deletion ──
+addLine('', '#0f0', exfilDelay);
+addLine('remote@' + attackIP + ':~# rm -rf / --no-preserve-root', '#f00', exfilDelay += 500);
+addLine('[SYSTEM] DELETING SYSTEM FILES...', '#f00', exfilDelay += 400);
+var delFiles = ['C:\\Windows\\system.ini','C:\\Windows\\config.cfg','C:\\Windows\\boot.log','C:\\My Documents\\diary.txt','C:\\My Documents\\budget.csv','C:\\My Documents\\contacts.json','C:\\My Documents\\Work\\invoice.csv','C:\\My Documents\\Projects\\todo.md'];
+for (var di = 0; di < delFiles.length; di++) {
+  (function(f, d) { addLine('  DELETED: ' + f, '#f44', d); })(delFiles[di], exfilDelay + 200 + di * 200);
+}
+exfilDelay += delFiles.length * 200 + 500;
+hkTimeout(function() { OS.showNotification('💀 FILES DESTROYED', 'System files are being permanently deleted'); }, exfilDelay - 800);
+
+// ── PHASE 8: Popup storm — fake error windows ──
+var popupMessages = [
+  'KERNEL PANIC: Fatal exception at 0x0000DEAD',
+  'MEMORY CORRUPT: Heap overflow in svchost.exe',
+  'DISK FAILURE: Bad sectors detected on C:\\',
+  'NETWORK: All traffic redirected to ' + attackIP,
+  'RANSOMWARE: Encryption module loaded',
+  'BIOS FLASH: Firmware write in progress...'
+];
+for (var pi = 0; pi < popupMessages.length; pi++) {
+  (function(msg, d) {
+    hkTimeout(function() {
+      var popup = OS.createWindow('⚠ SYSTEM ERROR', 280, 100, "<div style='display:flex;align-items:center;justify-content:center;height:100%;background:#c00;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:10px'>" + msg + "</div>");
+      popup.el.style.left = (50 + Math.random() * 300) + 'px';
+      popup.el.style.top = (30 + Math.random() * 200) + 'px';
+    }, d);
+  })(popupMessages[pi], exfilDelay + pi * 600);
+}
+exfilDelay += popupMessages.length * 600 + 400;
+
+// ── PHASE 9: HACKED banner + ransomware ──
+addLine('', '#0f0', exfilDelay);
+addLine('  ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗ ', '#f00', exfilDelay += 200);
+addLine('  ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗', '#f00', exfilDelay += 50);
+addLine('  ███████║███████║██║     █████╔╝ █████╗  ██║  ██║', '#f00', exfilDelay += 50);
+addLine('  ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██║  ██║', '#f00', exfilDelay += 50);
+addLine('  ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██████╔╝', '#f00', exfilDelay += 50);
+addLine('  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ', '#f00', exfilDelay += 50);
+addLine('', '#0f0', exfilDelay += 200);
+addLine('> ENCRYPTING ALL FILES WITH AES-256-CBC + RSA-4096...', '#f00', exfilDelay += 300);
+addLine('  [██                              ]   6%', '#f44', exfilDelay += 500);
+addLine('  [███████                         ]  22%', '#f44', exfilDelay += 500);
+addLine('  [█████████████                   ]  41%', '#f44', exfilDelay += 500);
+addLine('  [████████████████████            ]  63%', '#f44', exfilDelay += 500);
+addLine('  [██████████████████████████      ]  81%', '#f44', exfilDelay += 500);
+addLine('  [██████████████████████████████  ]  95%', '#f44', exfilDelay += 500);
+addLine('  [████████████████████████████████] 100% — COMPLETE', '#f00', exfilDelay += 500);
+addLine('', '#0f0', exfilDelay += 300);
+addLine('> ALL YOUR FILES HAVE BEEN ENCRYPTED.', '#f00', exfilDelay += 200);
+addLine('> Send 2.5 BTC to bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', '#ff0', exfilDelay += 300);
+addLine('> You have 48 hours. After that, your data is gone forever.', '#f00', exfilDelay += 300);
+
+// ── Fullscreen red flash ──
+hkTimeout(function() {
+  var flash = document.createElement('div');
+  flash.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(255,0,0,0.3);pointer-events:none;animation:hackFlash 0.5s ease 4';
+  var style = document.createElement('style');
+  style.textContent = '@keyframes hackFlash{0%,100%{opacity:0}50%{opacity:1}}';
+  document.head.appendChild(style);
+  document.body.appendChild(flash);
+  hkTimeout(function() { flash.remove(); style.remove(); }, 2500);
+}, exfilDelay - 800);
+
+// ── Desktop background goes red ──
+hkTimeout(function() {
+  document.getElementById('desktop').style.background = '#200000';
+}, exfilDelay);
+
+// ── PHASE 10: The reveal ──
+exfilDelay += 2500;
+addLine('', '#0f0', exfilDelay);
+addLine('', '#0f0', exfilDelay += 300);
+addLine('  ............................................................', '#0f0', exfilDelay += 200);
+addLine('', '#0f0', exfilDelay += 500);
+addLine('  relax. none of that was real. 😄', '#0f0', exfilDelay += 400);
+addLine('  your files are fine. your webcam is off.', '#0f0', exfilDelay += 300);
+addLine('  this was just a Mini OS code snippet.', '#0f0', exfilDelay += 300);
+addLine('  close this window to restore everything.', '#0f0', exfilDelay += 300);
+
+// ── Stop the shaking after reveal ──
+hkTimeout(function() {
+  if (shakeIv) clearInterval(shakeIv);
+  document.body.style.transform = '';
+}, exfilDelay);
+
+// ── CLEANUP on close ──
+w.el.querySelector('.btn-close').addEventListener('click', function() {
+  allTimeouts.forEach(clearTimeout);
+  allIntervals.forEach(clearInterval);
+  document.body.style.filter = '';
+  document.body.style.transform = '';
+  if (hexOverlay.parentNode) hexOverlay.remove();
+  var savedWp = localStorage.getItem('minios-custom-wallpaper');
+  if (savedWp) { document.getElementById('desktop').style.background = savedWp; }
+  else { document.getElementById('desktop').style.background = OS.wallpapers[OS.getCurrentWallpaper()]; }
 });
-var glitchIv = setInterval(function() {
-  if (Math.random() > 0.7) { document.body.style.filter = 'hue-rotate('+Math.floor(Math.random()*360)+'deg)'; setTimeout(function(){document.body.style.filter='';},80); }
-}, 500);
-var notifTimeout = setTimeout(function() {
-  OS.showNotification('⚠ SECURITY BREACH', 'Remote connection from ' + attackIP);
-}, 1000);
-var notifTimeout2 = setTimeout(function() {
-  OS.showNotification('⚠ DATA EXFILTRATION', 'Files are being uploaded to external server');
-}, 3500);
-w.el.querySelector('.btn-close').addEventListener('click', function() { clearInterval(glitchIv); timeouts.forEach(clearTimeout); clearTimeout(notifTimeout); clearTimeout(notifTimeout2); document.body.style.filter=''; });
 ```
