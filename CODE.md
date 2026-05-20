@@ -6,253 +6,7 @@ All of these also work as **`.app` files** — create a new text file in the fil
 
 ---
 
----
 
-### Hacker Attack Simulation
-
-```js
-var allTimeouts = [], allIntervals = [];
-function hkTimeout(fn, ms) { var t = setTimeout(fn, ms); allTimeouts.push(t); return t; }
-function hkInterval(fn, ms) { var t = setInterval(fn, ms); allIntervals.push(t); return t; }
-
-// ── PHASE 0: Fullscreen terminal ──
-var w = OS.createWindow("SECURITY BREACH DETECTED", 600, 400, "<div id='hackterm' style='background:#000;color:#0f0;font-family:Consolas,monospace;font-size:11px;height:100%;padding:8px;overflow-y:auto;white-space:pre-wrap'></div>");
-w.el.style.left='40px'; w.el.style.top='20px';
-var term = w.el.querySelector('#hackterm');
-var fakeIPs = ['194.32.78.'+Math.floor(Math.random()*255),'103.45.192.'+Math.floor(Math.random()*255),'77.91.68.'+Math.floor(Math.random()*255)];
-var attackIP = fakeIPs[Math.floor(Math.random()*3)];
-var fakeMAC = 'DE:AD:BE:EF:'+('0'+Math.floor(Math.random()*255).toString(16)).slice(-2).toUpperCase()+':'+('0'+Math.floor(Math.random()*255).toString(16)).slice(-2).toUpperCase();
-
-function addLine(text, color, delay) {
-  hkTimeout(function() {
-    var el = document.createElement('div');
-    el.style.color = color || '#0f0';
-    el.textContent = text;
-    term.appendChild(el);
-    term.scrollTop = term.scrollHeight;
-  }, delay);
-}
-
-// ── Fake scrolling hex dump in background ──
-var hexOverlay = document.createElement('div');
-hexOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:0;overflow:hidden;pointer-events:none;opacity:0.06;font-family:monospace;font-size:10px;color:#0f0;line-height:12px;white-space:pre';
-document.body.appendChild(hexOverlay);
-var hexIv = hkInterval(function() {
-  var line = '';
-  for (var i = 0; i < 80; i++) line += ('0'+Math.floor(Math.random()*256).toString(16)).slice(-2) + ' ';
-  hexOverlay.textContent += line + '\n';
-  if (hexOverlay.textContent.length > 20000) hexOverlay.textContent = hexOverlay.textContent.slice(-10000);
-}, 30);
-
-// ── PHASE 1: Initial breach ──
-addLine('[' + new Date().toISOString() + '] INTRUSION DETECTION SYSTEM v4.2.1', '#888', 0);
-addLine('[CRITICAL] Incoming SYN flood detected — 14,382 packets/sec', '#f44', 300);
-addLine('[CRITICAL] Source: ' + attackIP + ' (MAC: ' + fakeMAC + ')', '#f44', 600);
-addLine('[CRITICAL] GeoIP: Undisclosed — routing through 7 proxies', '#f44', 900);
-addLine('[WARNING] Port scan detected: 21,22,23,25,80,443,445,3306,3389,8080', '#ff0', 1300);
-addLine('[ALERT] Port 445 (SMB) — VULNERABLE. EternalBlue exploit matched.', '#f44', 1700);
-addLine('[SYSTEM] Firewall rule #4471 BYPASSED', '#f44', 2000);
-addLine('[SYSTEM] Firewall rule #4472 BYPASSED', '#f44', 2100);
-addLine('[SYSTEM] Firewall rule #4473 BYPASSED', '#f44', 2200);
-addLine('[SYSTEM] ALL FIREWALL RULES DISABLED', '#f00', 2400);
-addLine('', '#0f0', 2500);
-
-// ── PHASE 2: Payload delivery ──
-addLine('> Injecting payload: trojan_rootkit_x64.dll (348 KB)', '#0f0', 2800);
-addLine('  [████████████████████████████████] 100% — INJECTED', '#0f0', 3400);
-addLine('> Escalating privileges... NT AUTHORITY\\SYSTEM acquired', '#f84', 3800);
-addLine('> Disabling Windows Defender... DONE', '#f84', 4200);
-addLine('> Disabling Event Log... DONE', '#f84', 4400);
-addLine('> Installing keylogger on HID input stream... ACTIVE', '#f84', 4700);
-addLine('', '#0f0', 4900);
-
-// ── Notification spam starts ──
-hkTimeout(function() { OS.showNotification('⚠ FIREWALL DISABLED', 'All inbound rules have been deleted'); }, 2400);
-hkTimeout(function() { OS.showNotification('⚠ SECURITY BREACH', 'Remote connection from ' + attackIP); }, 3000);
-hkTimeout(function() { OS.showNotification('☠ ROOT ACCESS', 'NT AUTHORITY\\SYSTEM privileges granted to remote host'); }, 4000);
-
-// ── PHASE 3: File exfiltration — scan REAL filesystem ──
-addLine('> Enumerating filesystem for sensitive data...', '#0f0', 5000);
-var fileList = [];
-(function scanFS(node, path) {
-  if (!node || !node.children) return;
-  Object.keys(node.children).forEach(function(name) {
-    var child = node.children[name];
-    if (child.type === 'file') fileList.push({ name: name, path: path + '\\' + name, size: child.size || 0 });
-    if (child.type === 'folder') scanFS(child, path + '\\' + name);
-  });
-})(OS.fileSystem['C:'], 'C:');
-var exfilDelay = 5400;
-var exfilCount = Math.min(fileList.length, 18);
-for (var fi = 0; fi < exfilCount; fi++) {
-  (function(f, d) {
-    var tag = f.name.match(/\.(csv|json|txt|md|html|cfg|ini)$/i) ? 'EXFILTRATING' : 'SCANNING';
-    var color = tag === 'EXFILTRATING' ? '#ff0' : '#0f0';
-    addLine('  ' + f.path + (' ').repeat(Math.max(1, 48 - f.path.length)) + tag, color, d);
-  })(fileList[fi], exfilDelay + fi * 250);
-}
-exfilDelay += exfilCount * 250 + 300;
-addLine('> ' + fileList.length + ' files indexed. ' + exfilCount + ' files queued for upload.', '#ff0', exfilDelay);
-hkTimeout(function() { OS.showNotification('⚠ DATA EXFILTRATION', fileList.length + ' files found — uploading to ' + attackIP); }, exfilDelay);
-exfilDelay += 500;
-
-// ── PHASE 4: Credential dump ──
-addLine('', '#0f0', exfilDelay);
-addLine('> Dumping SAM database...', '#0f0', exfilDelay += 300);
-addLine('  Administrator:500:aad3b435b51404eeaad3b435b51404ee:fc525c9683e8fe067095ba2ddc971889:::', '#f84', exfilDelay += 500);
-addLine('  Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::', '#f84', exfilDelay += 300);
-addLine('  User:1001:aad3b435b51404eeaad3b435b51404ee:e19ccf75ee54e06b06a5907af13cef42:::', '#f84', exfilDelay += 300);
-addLine('> Cracking hashes with rainbow tables...', '#0f0', exfilDelay += 400);
-addLine('  Administrator : P@ssw0rd123!    [CRACKED in 0.4s]', '#f44', exfilDelay += 600);
-addLine('  User          : ilovecats       [CRACKED in 0.1s]', '#f44', exfilDelay += 400);
-hkTimeout(function() { OS.showNotification('☠ CREDENTIALS STOLEN', 'Administrator password cracked: P@ssw0rd123!'); }, exfilDelay);
-exfilDelay += 500;
-
-// ── PHASE 5: Reverse shell ──
-addLine('', '#0f0', exfilDelay);
-addLine('> Establishing encrypted reverse shell to ' + attackIP + ':4444', '#0f0', exfilDelay += 300);
-addLine('  TLS handshake... OK', '#0f0', exfilDelay += 400);
-addLine('  Tunnel established (AES-256-GCM)', '#0f0', exfilDelay += 300);
-addLine('', '#0f0', exfilDelay += 200);
-addLine('remote@' + attackIP + ':~# whoami', '#0f0', exfilDelay += 500);
-addLine('root', '#fff', exfilDelay += 400);
-addLine('remote@' + attackIP + ':~# uname -a', '#0f0', exfilDelay += 500);
-addLine('MiniOS 1.0.2600 x86_64 Browser/JS kernel', '#fff', exfilDelay += 300);
-addLine('remote@' + attackIP + ':~# cat /etc/shadow', '#0f0', exfilDelay += 500);
-addLine('root:$6$xZpKl$9j3kF8dHq2mNpL:19422:0:99999:7:::', '#fff', exfilDelay += 300);
-addLine('remote@' + attackIP + ':~# ls /home/user/.ssh/', '#0f0', exfilDelay += 500);
-addLine('id_rsa  id_rsa.pub  authorized_keys  known_hosts', '#fff', exfilDelay += 300);
-addLine('remote@' + attackIP + ':~# cat /home/user/.ssh/id_rsa', '#0f0', exfilDelay += 400);
-addLine('-----BEGIN RSA PRIVATE KEY-----', '#f84', exfilDelay += 300);
-addLine('MIIEpAIBAAKCAQEA7v3b8x0fN2r+jK0qB5tv2mRhFOqPX3IRGK', '#f84', exfilDelay += 100);
-addLine('kD9sD7k3HxVFBc0r+ENCRYPTED+STOLEN+LOL+n7G8x0Kj3vB', '#f84', exfilDelay += 100);
-addLine('-----END RSA PRIVATE KEY-----', '#f84', exfilDelay += 100);
-exfilDelay += 400;
-
-// ── Screen starts shaking ──
-var shakeIv;
-hkTimeout(function() {
-  shakeIv = hkInterval(function() {
-    var x = (Math.random()-0.5)*8, y = (Math.random()-0.5)*8;
-    document.body.style.transform = 'translate('+x+'px,'+y+'px)';
-  }, 50);
-}, exfilDelay);
-
-// ── PHASE 6: Webcam prank ──
-addLine('', '#0f0', exfilDelay);
-addLine('remote@' + attackIP + ':~# enable_webcam --silent --stream', '#0f0', exfilDelay += 500);
-addLine('[WEBCAM] Device 0 activated — streaming to ' + attackIP + ':8443', '#f44', exfilDelay += 500);
-hkTimeout(function() { OS.showNotification('📷 WEBCAM ACTIVE', 'Your camera is being streamed to a remote server'); }, exfilDelay);
-addLine('[MIC] Audio input device activated — recording started', '#f44', exfilDelay += 400);
-hkTimeout(function() { OS.showNotification('🎤 MICROPHONE ACTIVE', 'Audio is being recorded and transmitted'); }, exfilDelay);
-exfilDelay += 600;
-
-// ── Glitch effects get worse ──
-var glitchIv = hkInterval(function() {
-  if (Math.random() > 0.5) {
-    document.body.style.filter = 'hue-rotate('+Math.floor(Math.random()*360)+'deg) saturate(3) brightness('+(0.5+Math.random())+')';;
-    hkTimeout(function(){ document.body.style.filter=''; }, 60 + Math.random()*100);
-  }
-}, 300);
-
-// ── PHASE 7: Fake file deletion ──
-addLine('', '#0f0', exfilDelay);
-addLine('remote@' + attackIP + ':~# rm -rf / --no-preserve-root', '#f00', exfilDelay += 500);
-addLine('[SYSTEM] DELETING SYSTEM FILES...', '#f00', exfilDelay += 400);
-var delFiles = ['C:\\Windows\\system.ini','C:\\Windows\\config.cfg','C:\\Windows\\boot.log','C:\\My Documents\\diary.txt','C:\\My Documents\\budget.csv','C:\\My Documents\\contacts.json','C:\\My Documents\\Work\\invoice.csv','C:\\My Documents\\Projects\\todo.md'];
-for (var di = 0; di < delFiles.length; di++) {
-  (function(f, d) { addLine('  DELETED: ' + f, '#f44', d); })(delFiles[di], exfilDelay + 200 + di * 200);
-}
-exfilDelay += delFiles.length * 200 + 500;
-hkTimeout(function() { OS.showNotification('💀 FILES DESTROYED', 'System files are being permanently deleted'); }, exfilDelay - 800);
-
-// ── PHASE 8: Popup storm — fake error windows ──
-var popupMessages = [
-  'KERNEL PANIC: Fatal exception at 0x0000DEAD',
-  'MEMORY CORRUPT: Heap overflow in svchost.exe',
-  'DISK FAILURE: Bad sectors detected on C:\\',
-  'NETWORK: All traffic redirected to ' + attackIP,
-  'RANSOMWARE: Encryption module loaded',
-  'BIOS FLASH: Firmware write in progress...'
-];
-for (var pi = 0; pi < popupMessages.length; pi++) {
-  (function(msg, d) {
-    hkTimeout(function() {
-      var popup = OS.createWindow('⚠ SYSTEM ERROR', 280, 100, "<div style='display:flex;align-items:center;justify-content:center;height:100%;background:#c00;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:10px'>" + msg + "</div>");
-      popup.el.style.left = (50 + Math.random() * 300) + 'px';
-      popup.el.style.top = (30 + Math.random() * 200) + 'px';
-    }, d);
-  })(popupMessages[pi], exfilDelay + pi * 600);
-}
-exfilDelay += popupMessages.length * 600 + 400;
-
-// ── PHASE 9: HACKED banner + ransomware ──
-addLine('', '#0f0', exfilDelay);
-addLine('  ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗ ', '#f00', exfilDelay += 200);
-addLine('  ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗', '#f00', exfilDelay += 50);
-addLine('  ███████║███████║██║     █████╔╝ █████╗  ██║  ██║', '#f00', exfilDelay += 50);
-addLine('  ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██║  ██║', '#f00', exfilDelay += 50);
-addLine('  ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██████╔╝', '#f00', exfilDelay += 50);
-addLine('  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ', '#f00', exfilDelay += 50);
-addLine('', '#0f0', exfilDelay += 200);
-addLine('> ENCRYPTING ALL FILES WITH AES-256-CBC + RSA-4096...', '#f00', exfilDelay += 300);
-addLine('  [██                              ]   6%', '#f44', exfilDelay += 500);
-addLine('  [███████                         ]  22%', '#f44', exfilDelay += 500);
-addLine('  [█████████████                   ]  41%', '#f44', exfilDelay += 500);
-addLine('  [████████████████████            ]  63%', '#f44', exfilDelay += 500);
-addLine('  [██████████████████████████      ]  81%', '#f44', exfilDelay += 500);
-addLine('  [██████████████████████████████  ]  95%', '#f44', exfilDelay += 500);
-addLine('  [████████████████████████████████] 100% — COMPLETE', '#f00', exfilDelay += 500);
-addLine('', '#0f0', exfilDelay += 300);
-addLine('> ALL YOUR FILES HAVE BEEN ENCRYPTED.', '#f00', exfilDelay += 200);
-addLine('> Send 2.5 BTC to bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', '#ff0', exfilDelay += 300);
-addLine('> You have 48 hours. After that, your data is gone forever.', '#f00', exfilDelay += 300);
-
-// ── Fullscreen red flash ──
-hkTimeout(function() {
-  var flash = document.createElement('div');
-  flash.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(255,0,0,0.3);pointer-events:none;animation:hackFlash 0.5s ease 4';
-  var style = document.createElement('style');
-  style.textContent = '@keyframes hackFlash{0%,100%{opacity:0}50%{opacity:1}}';
-  document.head.appendChild(style);
-  document.body.appendChild(flash);
-  hkTimeout(function() { flash.remove(); style.remove(); }, 2500);
-}, exfilDelay - 800);
-
-// ── Desktop background goes red ──
-hkTimeout(function() {
-  document.getElementById('desktop').style.background = '#200000';
-}, exfilDelay);
-
-// ── PHASE 10: The reveal ──
-exfilDelay += 2500;
-addLine('', '#0f0', exfilDelay);
-addLine('', '#0f0', exfilDelay += 300);
-addLine('  ............................................................', '#0f0', exfilDelay += 200);
-addLine('', '#0f0', exfilDelay += 500);
-addLine('  relax. none of that was real. 😄', '#0f0', exfilDelay += 400);
-addLine('  your files are fine. your webcam is off.', '#0f0', exfilDelay += 300);
-addLine('  this was just a Mini OS code snippet.', '#0f0', exfilDelay += 300);
-addLine('  close this window to restore everything.', '#0f0', exfilDelay += 300);
-
-// ── Stop the shaking after reveal ──
-hkTimeout(function() {
-  if (shakeIv) clearInterval(shakeIv);
-  document.body.style.transform = '';
-}, exfilDelay);
-
-// ── CLEANUP on close ──
-w.el.querySelector('.btn-close').addEventListener('click', function() {
-  allTimeouts.forEach(clearTimeout);
-  allIntervals.forEach(clearInterval);
-  document.body.style.filter = '';
-  document.body.style.transform = '';
-  if (hexOverlay.parentNode) hexOverlay.remove();
-  var savedWp = localStorage.getItem('minios-custom-wallpaper');
-  if (savedWp) { document.getElementById('desktop').style.background = savedWp; }
-  else { document.getElementById('desktop').style.background = OS.wallpapers[OS.getCurrentWallpaper()]; }
-});
-```
 
 ---
 
@@ -625,3 +379,536 @@ w.el.querySelector('.btn-close').addEventListener('click', function() {
 
 OS.showNotification('Activity Monitor', 'Now watching all app events.');
 ```
+
+---
+
+### Bouncing Windows
+
+Demonstrates: `moveWindow` · `setWindowOpacity` · `resizeWindow` · `getScreenSize` · `showToast`
+
+Opens 4 coloured windows and bounces them around the desktop in real time. Each window has its own velocity and fades as it moves. Click Stop to end the animation.
+
+```js
+var screen = OS.getScreenSize();
+var balls = [];
+var animIv = null;
+
+var colors = [
+  { bg: '#c0392b', label: 'Red' },
+  { bg: '#2980b9', label: 'Blue' },
+  { bg: '#27ae60', label: 'Green' },
+  { bg: '#8e44ad', label: 'Purple' }
+];
+
+// Spawn the bouncing windows
+colors.forEach(function(c) {
+  var win = OS.createWindow(c.label, 140, 80,
+    '<div style="height:100%;background:' + c.bg + ';display:flex;align-items:center;' +
+    'justify-content:center;color:#fff;font-size:18px;font-weight:700">' + c.label + '</div>'
+  );
+  balls.push({
+    win: win,
+    x: Math.random() * (screen.width  - 160),
+    y: Math.random() * (screen.height - 100),
+    vx: (Math.random() * 4 + 2) * (Math.random() > 0.5 ? 1 : -1),
+    vy: (Math.random() * 3 + 1) * (Math.random() > 0.5 ? 1 : -1)
+  });
+});
+
+animIv = setInterval(function() {
+  balls.forEach(function(b) {
+    b.x += b.vx;
+    b.y += b.vy;
+
+    // Bounce off edges
+    if (b.x < 0)                  { b.x = 0;                  b.vx = Math.abs(b.vx); }
+    if (b.x > screen.width - 150) { b.x = screen.width - 150; b.vx = -Math.abs(b.vx); }
+    if (b.y < 0)                  { b.y = 0;                  b.vy = Math.abs(b.vy); }
+    if (b.y > screen.height - 90) { b.y = screen.height - 90; b.vy = -Math.abs(b.vy); }
+
+    // Speed = opacity (faster = more opaque)
+    var speed   = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    var opacity = Math.min(1, 0.3 + speed / 10);
+
+    OS.moveWindow(b.win, Math.round(b.x), Math.round(b.y));
+    OS.setWindowOpacity(b.win, opacity);
+  });
+}, 16);
+
+// Control panel
+var ctrl = OS.createWindow('Bounce Controls', 240, 110,
+  '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+  'height:100%;gap:8px;background:#ece9d8">' +
+    '<div style="font-size:11px;color:#555">4 windows bouncing around the desktop</div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button id="btnStop"  style="padding:4px 18px;cursor:pointer;font-family:inherit">Stop</button>' +
+      '<button id="btnFast"  style="padding:4px 18px;cursor:pointer;font-family:inherit">Speed Up</button>' +
+      '<button id="btnSlow"  style="padding:4px 18px;cursor:pointer;font-family:inherit">Slow Down</button>' +
+    '</div>' +
+  '</div>'
+);
+OS.pinWindow(ctrl);
+
+ctrl.el.querySelector('#btnStop').addEventListener('click', function() {
+  clearInterval(animIv);
+  balls.forEach(function(b) { OS.setWindowOpacity(b.win, 1); });
+  OS.showToast('Animation stopped', 1000);
+  this.disabled = true;
+});
+
+ctrl.el.querySelector('#btnFast').addEventListener('click', function() {
+  balls.forEach(function(b) { b.vx *= 1.4; b.vy *= 1.4; });
+});
+
+ctrl.el.querySelector('#btnSlow').addEventListener('click', function() {
+  balls.forEach(function(b) { b.vx *= 0.7; b.vy *= 0.7; });
+});
+
+ctrl.el.querySelector('.btn-close').addEventListener('click', function() {
+  clearInterval(animIv);
+  balls.forEach(function(b) { b.win.el.querySelector('.btn-close').click(); });
+});
+```
+
+---
+
+### File Browser with Preview
+
+Demonstrates: `listDir` · `readFile` · `fileExists` · `formatFileSize` · `escapeHtml` · `fileSystem`
+
+A two-pane browser: left side navigates the folder tree, right side previews the selected file's content. Uses the filesystem helpers for navigation and raw `OS.fileSystem` for size/date metadata.
+
+```js
+var currentPath = 'C:';
+
+var w = OS.createWindow('File Browser', 560, 380,
+  '<div style="display:flex;height:100%">' +
+    '<div style="width:180px;flex-shrink:0;border-right:1px solid #bbb;display:flex;flex-direction:column;background:#f8f8f8">' +
+      '<div style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:10px;color:#555;font-weight:700" id="pathBar">C:</div>' +
+      '<div id="dirList" style="flex:1;overflow-y:auto"></div>' +
+    '</div>' +
+    '<div style="flex:1;display:flex;flex-direction:column">' +
+      '<div id="previewTitle" style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:11px;font-weight:700;color:#003399">Select a file to preview</div>' +
+      '<div id="previewBody"  style="flex:1;overflow:auto;padding:8px;font-family:Consolas,monospace;font-size:11px;white-space:pre-wrap;line-height:1.5;color:#222"></div>' +
+      '<div id="previewMeta"  style="padding:3px 8px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#777"></div>' +
+    '</div>' +
+  '</div>'
+);
+w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+var pathBar    = w.el.querySelector('#pathBar');
+var dirList    = w.el.querySelector('#dirList');
+var prevTitle  = w.el.querySelector('#previewTitle');
+var prevBody   = w.el.querySelector('#previewBody');
+var prevMeta   = w.el.querySelector('#previewMeta');
+
+function getNode(path) {
+  var parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+  var node  = OS.fileSystem[parts[0]];
+  for (var i = 1; i < parts.length; i++) {
+    if (!node || !node.children) return null;
+    node = node.children[parts[i]];
+  }
+  return node;
+}
+
+function navigate(path) {
+  currentPath = path;
+  pathBar.textContent = path;
+  prevTitle.textContent = 'Select a file to preview';
+  prevBody.textContent  = '';
+  prevMeta.textContent  = '';
+
+  var entries = OS.listDir(path) || [];
+  var node    = getNode(path);
+
+  dirList.innerHTML = '';
+
+  // Back button (except at root)
+  if (path !== 'C:') {
+    var backRow = document.createElement('div');
+    backRow.style.cssText = 'padding:4px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eee;color:#003399';
+    backRow.textContent = '← ..';
+    backRow.addEventListener('click', function() {
+      var parts = path.replace(/\\/g, '/').split('/');
+      parts.pop();
+      navigate(parts.join('/'));
+    });
+    dirList.appendChild(backRow);
+  }
+
+  entries.forEach(function(name) {
+    var childNode  = node && node.children && node.children[name];
+    var isFolder   = childNode && childNode.type === 'folder';
+    var row        = document.createElement('div');
+    row.style.cssText = 'padding:4px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eee;' +
+                        'display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    row.innerHTML = (isFolder ? '📁 ' : '📄 ') + OS.escapeHtml(name);
+    row.title = name;
+
+    row.addEventListener('mouseenter', function() { this.style.background = '#dde8ff'; });
+    row.addEventListener('mouseleave', function() { this.style.background = ''; });
+
+    row.addEventListener('click', function() {
+      if (isFolder) {
+        navigate(path + '/' + name);
+      } else {
+        var content = OS.readFile(path + '/' + name);
+        prevTitle.textContent = name;
+        if (content === null) {
+          prevBody.textContent = '(cannot read this file type)';
+        } else {
+          prevBody.textContent = content.length > 4000 ? content.slice(0, 4000) + '\n...(truncated)' : content;
+        }
+        var size = childNode ? OS.formatFileSize(childNode.size || 0) : '?';
+        var mod  = childNode ? (childNode.modified || '?') : '?';
+        prevMeta.textContent = 'Size: ' + size + '   Modified: ' + mod;
+      }
+    });
+    dirList.appendChild(row);
+  });
+}
+
+navigate('C:');
+```
+
+---
+
+### Clipboard & Recycle Bin Viewer
+
+Demonstrates: `clipboardHistory` · `recycleBin()` · `formatFileSize` · `escapeHtml` · `showToast` · `confirm`
+
+A two-tab utility that shows exactly what's in the clipboard history and the Recycle Bin. You can empty the bin from here without opening the file manager.
+
+```js
+var w = OS.createWindow('Clipboard & Recycle Bin', 380, 300,
+  '<div style="display:flex;flex-direction:column;height:100%;background:#fff">' +
+    '<div style="display:flex;border-bottom:2px solid #ccc;background:#ece9d8">' +
+      '<div id="tabClip" style="padding:5px 18px;font-size:11px;font-weight:700;cursor:pointer;border-bottom:2px solid #003399;margin-bottom:-2px;color:#003399">📋 Clipboard History</div>' +
+      '<div id="tabBin"  style="padding:5px 18px;font-size:11px;cursor:pointer;color:#555">🗑 Recycle Bin</div>' +
+    '</div>' +
+    '<div id="panelClip" style="flex:1;overflow-y:auto"></div>' +
+    '<div id="panelBin"  style="flex:1;overflow-y:auto;display:none"></div>' +
+    '<div style="padding:3px 8px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#777" id="statusBar">Ready</div>' +
+  '</div>'
+);
+w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+var panelClip = w.el.querySelector('#panelClip');
+var panelBin  = w.el.querySelector('#panelBin');
+var statusBar = w.el.querySelector('#statusBar');
+var tabClip   = w.el.querySelector('#tabClip');
+var tabBin    = w.el.querySelector('#tabBin');
+
+function switchTab(showClip) {
+  panelClip.style.display = showClip ? '' : 'none';
+  panelBin.style.display  = showClip ? 'none' : '';
+  tabClip.style.fontWeight = showClip ? '700' : '400';
+  tabClip.style.color      = showClip ? '#003399' : '#555';
+  tabClip.style.borderBottom = showClip ? '2px solid #003399' : 'none';
+  tabBin.style.fontWeight  = showClip ? '400' : '700';
+  tabBin.style.color       = showClip ? '#555' : '#003399';
+  tabBin.style.borderBottom = showClip ? 'none' : '2px solid #003399';
+  if (showClip) renderClipboard(); else renderBin();
+}
+
+function renderClipboard() {
+  var history = OS.clipboardHistory;
+  if (history.length === 0) {
+    panelClip.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:11px">Nothing copied yet.<br>Cut or copy files in My Documents first.</div>';
+    statusBar.textContent = '0 clipboard entries';
+    return;
+  }
+  panelClip.innerHTML = history.map(function(entry, i) {
+    var modeColor = entry.mode === 'cut' ? '#c0392b' : '#2980b9';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid #eee;font-size:11px">' +
+      '<span style="background:' + modeColor + ';color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;flex-shrink:0">' + entry.mode.toUpperCase() + '</span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + OS.escapeHtml(entry.name) + '</span>' +
+      '<span style="color:#999;flex-shrink:0">' + entry.time + '</span>' +
+    '</div>';
+  }).join('');
+  statusBar.textContent = history.length + ' clipboard ' + (history.length === 1 ? 'entry' : 'entries');
+}
+
+function renderBin() {
+  var bin     = OS.recycleBin();
+  var entries = Object.keys(bin.children);
+  if (entries.length === 0) {
+    panelBin.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:11px">Recycle Bin is empty.</div>';
+    statusBar.textContent = 'Recycle Bin: empty';
+    return;
+  }
+  var totalSize = entries.reduce(function(sum, name) {
+    return sum + (bin.children[name].size || 0);
+  }, 0);
+  panelBin.innerHTML =
+    '<div style="padding:4px 10px;background:#fff8e1;border-bottom:1px solid #eee;font-size:10px;color:#555">' +
+      entries.length + ' item' + (entries.length !== 1 ? 's' : '') + ' — ' + OS.formatFileSize(totalSize) +
+      ' <span id="emptyBinBtn" style="color:#c00;cursor:pointer;margin-left:8px;text-decoration:underline">Empty Bin</span>' +
+    '</div>' +
+    entries.map(function(name) {
+      var node = bin.children[name];
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid #eee;font-size:11px">' +
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🗑 ' + OS.escapeHtml(name) + '</span>' +
+        '<span style="color:#999;font-size:10px">' + OS.formatFileSize(node.size || 0) + '</span>' +
+      '</div>';
+    }).join('');
+  statusBar.textContent = 'Recycle Bin: ' + entries.length + ' item' + (entries.length !== 1 ? 's' : '');
+
+  panelBin.querySelector('#emptyBinBtn').addEventListener('click', function() {
+    OS.confirm('Permanently delete all ' + entries.length + ' item(s)?', function(yes) {
+      if (!yes) return;
+      entries.forEach(function(name) { delete bin.children[name]; });
+      OS.saveFilesystem();
+      OS.showToast('Recycle Bin emptied', 1500);
+      renderBin();
+    });
+  });
+}
+
+tabClip.addEventListener('click', function() { switchTab(true); });
+tabBin.addEventListener('click',  function() { switchTab(false); });
+switchTab(true);
+
+// Refresh every 2 seconds so new clipboard entries appear live
+setInterval(function() {
+  if (panelClip.style.display !== 'none') renderClipboard();
+  else renderBin();
+}, 2000);
+```
+
+---
+
+### Spotlight Quick Launcher
+
+Demonstrates: `onKeyCombo` · `openApp` · `alert` · `showToast` · `windows` · `getScreenSize` · `moveWindow`
+
+Press **Alt+Space** anywhere to open a centred launcher. Type an app name or window title and hit Enter. Supports fuzzy matching against built-in apps and currently open window titles.
+
+```js
+var APPS = [
+  { name: 'notepad',        label: 'Notepad' },
+  { name: 'calculator',     label: 'Calculator' },
+  { name: 'files',          label: 'My Documents' },
+  { name: 'terminal',       label: 'Command Prompt' },
+  { name: 'browser',        label: 'Internet' },
+  { name: 'paint',          label: 'Paint' },
+  { name: 'clock',          label: 'Clock' },
+  { name: 'minesweeper',    label: 'Minesweeper' },
+  { name: 'settings',       label: 'Control Panel' },
+  { name: 'codeeditor',     label: 'Code Editor' },
+  { name: 'findfiles',      label: 'Find Files' },
+  { name: 'clipboardmanager', label: 'Clipboard Manager' },
+  { name: 'about',          label: 'About Mini OS' }
+];
+
+var launcherWin = null;
+
+function openLauncher() {
+  // Don't open twice
+  if (launcherWin && OS.windows.indexOf(launcherWin) >= 0) {
+    launcherWin.el.querySelector('#spotInput').focus();
+    return;
+  }
+
+  var screen = OS.getScreenSize();
+
+  launcherWin = OS.createWindow('Quick Launch', 340, 260,
+    '<div style="display:flex;flex-direction:column;height:100%;background:#fff">' +
+      '<input id="spotInput" style="padding:8px 12px;font-size:14px;border:none;border-bottom:2px solid #3a89e5;outline:none;font-family:inherit" placeholder="Search apps or windows..." />' +
+      '<div id="spotResults" style="flex:1;overflow-y:auto"></div>' +
+      '<div style="padding:3px 10px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#888">↑↓ navigate · Enter launch · Esc close</div>' +
+    '</div>'
+  );
+  w  = launcherWin;
+  w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+  // Center it on screen
+  OS.moveWindow(w, (screen.width - 340) / 2, Math.floor(screen.height * 0.25));
+
+  var input   = w.el.querySelector('#spotInput');
+  var results = w.el.querySelector('#spotResults');
+  var selected = 0;
+
+  function getMatches(query) {
+    var q = query.toLowerCase();
+    var matches = [];
+
+    // Open windows first
+    OS.windows.forEach(function(win) {
+      if (win === w) return;
+      if (!q || win.title.toLowerCase().includes(q)) {
+        matches.push({ label: '🪟 ' + win.title, action: function() {
+          win.el.querySelector('.window-header').click();
+        }});
+      }
+    });
+
+    // Built-in apps
+    APPS.forEach(function(app) {
+      if (!q || app.label.toLowerCase().includes(q) || app.name.includes(q)) {
+        matches.push({ label: '▶ ' + app.label, action: function() {
+          OS.openApp(app.name);
+          OS.showToast('Opened ' + app.label, 1000);
+        }});
+      }
+    });
+
+    return matches.slice(0, 8);
+  }
+
+  function render(query) {
+    var matches = getMatches(query);
+    selected = 0;
+    results.innerHTML = matches.length === 0
+      ? '<div style="padding:12px;text-align:center;color:#999;font-size:12px">No match found</div>'
+      : matches.map(function(m, i) {
+          return '<div class="spotRow" data-i="' + i + '" style="padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0f0f0;' +
+                 (i === 0 ? 'background:#e8f0ff;' : '') + '">' + m.label + '</div>';
+        }).join('');
+
+    results.querySelectorAll('.spotRow').forEach(function(row) {
+      row.addEventListener('mouseenter', function() {
+        results.querySelectorAll('.spotRow').forEach(function(r) { r.style.background = ''; });
+        row.style.background = '#e8f0ff';
+        selected = parseInt(row.getAttribute('data-i'));
+      });
+      row.addEventListener('click', function() {
+        matches[parseInt(row.getAttribute('data-i'))].action();
+        w.el.querySelector('.btn-close').click();
+      });
+    });
+    return matches;
+  }
+
+  input.addEventListener('input', function() { render(input.value); });
+
+  input.addEventListener('keydown', function(e) {
+    var matches = getMatches(input.value);
+    if (e.key === 'ArrowDown') { selected = Math.min(selected + 1, matches.length - 1); }
+    if (e.key === 'ArrowUp')   { selected = Math.max(selected - 1, 0); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      results.querySelectorAll('.spotRow').forEach(function(r, i) {
+        r.style.background = i === selected ? '#e8f0ff' : '';
+      });
+      e.preventDefault();
+    }
+    if (e.key === 'Enter' && matches[selected]) {
+      matches[selected].action();
+      w.el.querySelector('.btn-close').click();
+    }
+    if (e.key === 'Escape') { w.el.querySelector('.btn-close').click(); }
+  });
+
+  render('');
+  input.focus();
+}
+
+OS.onKeyCombo('Alt+ ', openLauncher);
+
+// Show a toast so the user knows the shortcut is active
+OS.showToast('Spotlight ready — press Alt+Space to open', 2500);
+```
+
+---
+
+### Backup & Restore Tool
+
+Demonstrates: `exportFilesystem` · `saveFilesystem` · `readFile` · `writeFile` · `fileExists` · `confirm` · `alert` · `showToast` · `getActiveUser` · `formatFileSize`
+
+A practical backup utility. Lets you download a full JSON export, save a named checkpoint to the filesystem itself, and restore from it.
+
+```js
+var CHECKPOINT_PATH = 'C:/My Documents/checkpoint.json';
+
+var w = OS.createWindow('Backup & Restore', 360, 280,
+  '<div style="display:flex;flex-direction:column;gap:0;height:100%;background:#fff">' +
+
+    '<div style="padding:8px 12px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:11px;font-weight:700;color:#003399">💾 Backup Options</div>' +
+
+    '<div style="padding:10px 12px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:11px;font-weight:700">Download full backup (.json file):</div>' +
+      '<div style="font-size:10px;color:#666">Saves everything — files, folders, wallpaper. Use this to move your data to another machine.</div>' +
+      '<button id="btnExport" style="padding:4px 14px;font-size:11px;cursor:pointer;font-family:inherit;align-self:flex-start">⬇ Download Backup</button>' +
+    '</div>' +
+
+    '<div style="padding:10px 12px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:11px;font-weight:700">Save checkpoint inside Mini OS:</div>' +
+      '<div style="font-size:10px;color:#666">Writes a snapshot to <code style="background:#f0f0f0;padding:0 3px">C:/My Documents/checkpoint.json</code>.</div>' +
+      '<div style="display:flex;gap:6px">' +
+        '<button id="btnSaveCheck"    style="padding:4px 14px;font-size:11px;cursor:pointer;font-family:inherit">📸 Save Checkpoint</button>' +
+        '<button id="btnRestoreCheck" style="padding:4px 14px;font-size:11px;cursor:pointer;font-family:inherit">↩ Restore Checkpoint</button>' +
+      '</div>' +
+      '<div id="checkpointInfo" style="font-size:10px;color:#888">Checking...</div>' +
+    '</div>' +
+
+    '<div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="font-size:11px;font-weight:700">Force-save to localStorage now:</div>' +
+      '<div style="font-size:10px;color:#666">The OS auto-saves on window close, but you can force it here.</div>' +
+      '<button id="btnForceSave" style="padding:4px 14px;font-size:11px;cursor:pointer;font-family:inherit;align-self:flex-start">💾 Force Save</button>' +
+    '</div>' +
+
+  '</div>'
+);
+
+var infoEl = w.el.querySelector('#checkpointInfo');
+
+function updateCheckpointInfo() {
+  if (OS.fileExists(CHECKPOINT_PATH)) {
+    try {
+      var data = JSON.parse(OS.readFile(CHECKPOINT_PATH));
+      infoEl.textContent = 'Checkpoint saved on ' + (data.savedAt || 'unknown date') +
+        ' · ' + OS.formatFileSize(OS.readFile(CHECKPOINT_PATH).length);
+    } catch (e) {
+      infoEl.textContent = 'Checkpoint exists (unreadable)';
+    }
+  } else {
+    infoEl.textContent = 'No checkpoint saved yet';
+  }
+}
+updateCheckpointInfo();
+
+w.el.querySelector('#btnExport').addEventListener('click', function() {
+  var user = OS.getActiveUser() || 'user';
+  var date = new Date().toISOString().slice(0, 10);
+  OS.exportFilesystem('minios-backup-' + user + '-' + date + '.json');
+  OS.showToast('Downloading backup...', 2000);
+});
+
+w.el.querySelector('#btnSaveCheck').addEventListener('click', function() {
+  var snapshot = {
+    savedAt: new Date().toLocaleString(),
+    user: OS.getActiveUser(),
+    fileSystem: OS.fileSystem
+  };
+  OS.writeFile(CHECKPOINT_PATH, JSON.stringify(snapshot));
+  OS.showToast('Checkpoint saved ✓', 1500);
+  updateCheckpointInfo();
+});
+
+w.el.querySelector('#btnRestoreCheck').addEventListener('click', function() {
+  if (!OS.fileExists(CHECKPOINT_PATH)) {
+    OS.alert('No Checkpoint', 'No checkpoint file found. Save one first.');
+    return;
+  }
+  OS.confirm('Restore from checkpoint? This overwrites all current files.', function(yes) {
+    if (!yes) return;
+    try {
+      var data = JSON.parse(OS.readFile(CHECKPOINT_PATH));
+      if (data.fileSystem && data.fileSystem['C:']) {
+        OS.fileSystem['C:'] = data.fileSystem['C:'];
+        OS.saveFilesystem();
+        OS.alert('Restored', 'Filesystem restored from checkpoint saved on ' + data.savedAt + '.\n\nReopen My Documents to see the changes.');
+      } else {
+        OS.alert('Error', 'Checkpoint file is invalid or corrupted.');
+      }
+    } catch (e) {
+      OS.alert('Error', 'Could not parse checkpoint: ' + e.message);
+    }
+  });
+});
+
+w.el.querySelector('#btnForceSave').addEventListener('click', function() {
+  var ok = OS.saveFilesystem();
+  OS.showToast(ok ? '💾 Saved to localStorage ✓' : '⚠ Save failed (no active user?)', 2000);
+});
