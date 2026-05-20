@@ -352,6 +352,7 @@ OS.importFilesystem = importFilesystem;
 OS.setBootConfig = setBootConfig;
 OS.getBootConfig = getBootConfig;
 OS.getActiveUser = function () { return activeUserName; };
+OS.onWindowChanged = function () { saveSession(); };
 OS.getProfiles = getProfiles;
 
 })();
