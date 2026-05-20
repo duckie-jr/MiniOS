@@ -397,6 +397,7 @@ function createWindow(title, width, height, bodyHTML) {
     windows = windows.filter(function (w) { return w.id !== winId; });
     updateTaskbar();
     if (MicroOS.onWindowChanged) MicroOS.onWindowChanged();
+    if (MicroOS.onAppClose) MicroOS.onAppClose(title);
   });
 
   return winObj;
@@ -405,7 +406,13 @@ function createWindow(title, width, height, bodyHTML) {
 function focusWindow(targetWindow) {
   windows.forEach(function (w) { w.el.classList.remove('focused'); });
   targetWindow.el.classList.add('focused');
-  targetWindow.el.style.zIndex = ++topZ;
+  if (!targetWindow.pinned) {
+    targetWindow.el.style.zIndex = ++topZ;
+  }
+  // Re-enforce all pinned windows above any newly raised window
+  windows.forEach(function (w) {
+    if (w.pinned) w.el.style.zIndex = 9999;
+  });
   if (targetWindow.minimized) {
     targetWindow.minimized = false;
     targetWindow.el.classList.remove('minimized');
@@ -442,7 +449,10 @@ function registerApp(name, builderFunction) {
 }
 
 function openApp(name) {
-  if (appRegistry[name]) appRegistry[name]();
+  if (appRegistry[name]) {
+    appRegistry[name]();
+    if (MicroOS.onAppOpen) MicroOS.onAppOpen(name);
+  }
 }
 
 // ── Dynamic Context Menu ──
@@ -804,6 +814,99 @@ function osConfirm(message, callback) {
   dialog.el.querySelector('.dialog-btn-ok').focus();
 }
 
+// ── Window Behavior API ──
+function pinWindow(winObj) {
+  winObj.pinned = !winObj.pinned;
+  if (winObj.pinned) {
+    winObj.el.classList.add('window-pinned');
+    winObj.el.style.zIndex = 9999;
+  } else {
+    winObj.el.classList.remove('window-pinned');
+    winObj.el.style.zIndex = ++topZ;
+  }
+}
+
+function shakeWindow(winObj) {
+  var element = winObj.el;
+  element.classList.remove('window-shaking');
+  void element.offsetWidth; // Force reflow to restart the animation
+  element.classList.add('window-shaking');
+  setTimeout(function () { element.classList.remove('window-shaking'); }, 500);
+}
+
+function flashWindow(winObj) {
+  var element = winObj.el;
+  element.classList.remove('window-flashing');
+  void element.offsetWidth;
+  element.classList.add('window-flashing');
+  setTimeout(function () { element.classList.remove('window-flashing'); }, 1400);
+}
+
+function moveWindow(winObj, x, y) {
+  if (winObj.maximized) return;
+  winObj.el.style.left = x + 'px';
+  winObj.el.style.top = y + 'px';
+}
+
+function tileWindows() {
+  var visibleWindows = windows.filter(function (w) { return !w.minimized; });
+  if (visibleWindows.length === 0) return;
+
+  visibleWindows.forEach(function (w) {
+    if (w.maximized) {
+      w.maximized = false;
+      w.el.classList.remove('maximized');
+    }
+  });
+
+  var desktopWidth = window.innerWidth;
+  var desktopHeight = window.innerHeight - 30; // Subtract taskbar height
+  var columnCount = Math.ceil(Math.sqrt(visibleWindows.length));
+  var rowCount = Math.ceil(visibleWindows.length / columnCount);
+  var tileWidth = Math.floor(desktopWidth / columnCount);
+  var tileHeight = Math.floor(desktopHeight / rowCount);
+
+  visibleWindows.forEach(function (w, index) {
+    var column = index % columnCount;
+    var row = Math.floor(index / columnCount);
+    w.el.style.left = (column * tileWidth) + 'px';
+    w.el.style.top = (row * tileHeight) + 'px';
+    w.el.style.width = tileWidth + 'px';
+    w.el.style.height = tileHeight + 'px';
+  });
+}
+
+function minimizeAll() {
+  windows.forEach(function (w) {
+    if (!w.minimized) {
+      w.minimized = true;
+      w.el.classList.add('minimized');
+    }
+  });
+  updateTaskbar();
+}
+
+function restoreAll() {
+  windows.forEach(function (w) {
+    if (w.minimized) {
+      w.minimized = false;
+      w.el.classList.remove('minimized');
+    }
+  });
+  updateTaskbar();
+}
+
+function setWindowOpacity(winObj, opacity) {
+  winObj.el.style.opacity = Math.max(0.1, Math.min(1, opacity));
+}
+
+function resizeWindow(winObj, width, height) {
+  if (winObj.maximized) return;
+  winObj.el.style.width = Math.max(260, width) + 'px';
+  winObj.el.style.height = Math.max(150, height) + 'px';
+  winObj.el.dispatchEvent(new Event('windowresize'));
+}
+
 // ── Expose API for apps.js ──
 MicroOS.createWindow = createWindow;
 MicroOS.prompt = osPrompt;
@@ -835,5 +938,230 @@ MicroOS.imgSvg = imgSvg;
 MicroOS.appSvg = appSvg;
 MicroOS.svgIconSvg = svgIconSvg;
 MicroOS.recycleBin = function () { return fileSystem['C:'].children['Recycle Bin']; };
+MicroOS.pinWindow = pinWindow;
+MicroOS.shakeWindow = shakeWindow;
+MicroOS.flashWindow = flashWindow;
+MicroOS.moveWindow = moveWindow;
+MicroOS.tileWindows = tileWindows;
+MicroOS.minimizeAll = minimizeAll;
+MicroOS.restoreAll = restoreAll;
+MicroOS.setWindowOpacity = setWindowOpacity;
+MicroOS.resizeWindow = resizeWindow;
+MicroOS.alert = osAlert;
+MicroOS.showToast = showToast;
+MicroOS.onKeyCombo = onKeyCombo;
+MicroOS.readFile = readFile;
+MicroOS.writeFile = writeFile;
+MicroOS.deleteFile = deleteFile;
+MicroOS.listDir = listDir;
+MicroOS.fileExists = fileExists;
+MicroOS.addDesktopWidget = addDesktopWidget;
+MicroOS.setTaskbarColor = setTaskbarColor;
+MicroOS.setCursorStyle = setCursorStyle;
+MicroOS.getScreenSize = getScreenSize;
+MicroOS.onAppOpen = null;
+MicroOS.onAppClose = null;
+
+
+
+
+// ── Notifications & Dialogs API ──
+function osAlert(title, message) {
+  var iconSvg =
+    '<svg viewBox="0 0 20 20" width="24" height="24">' +
+    '<circle cx="10" cy="10" r="9" fill="#4a8acc"/>' +
+    '<text x="10" y="14" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">i</text></svg>';
+  var dialog = createDialog(title,
+    '<div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:4px">' +
+      '<div style="flex-shrink:0">' + iconSvg + '</div>' +
+      '<div class="dialog-message" style="margin:0;padding-top:4px">' + escapeHtml(message) + '</div>' +
+    '</div>' +
+    '<div class="dialog-buttons"><button class="dialog-btn dialog-btn-ok" style="min-width:80px">OK</button></div>');
+  var okBtn = dialog.el.querySelector('.dialog-btn-ok');
+  okBtn.focus();
+  okBtn.addEventListener('click', function () { dialog.close(); });
+  dialog.el.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); dialog.close(); }
+  });
+}
+
+function showToast(message, durationMs) {
+  var duration = (typeof durationMs === 'number' && durationMs > 0) ? durationMs : 3000;
+  var area = document.getElementById('notification-area');
+  var toast = document.createElement('div');
+  toast.className = 'notification-toast';
+  toast.innerHTML =
+    '<div class="toast-content"><div class="toast-msg">' + message + '</div></div>';
+  area.appendChild(toast);
+  toast.addEventListener('click', function () {
+    toast.classList.add('fade-out');
+    setTimeout(function () { toast.remove(); }, 300);
+  });
+  setTimeout(function () {
+    toast.classList.add('fade-out');
+    setTimeout(function () { toast.remove(); }, 300);
+  }, duration);
+}
+
+// ── Input API ──
+
+// Registry of active key combo listeners
+var keyComboListeners = [];
+
+// Parse a combo string like "Ctrl+Shift+K" into a normalized descriptor
+function parseKeyCombo(comboString) {
+  var parts = comboString.split('+').map(function (part) { return part.trim().toLowerCase(); });
+  return {
+    ctrl:  parts.indexOf('ctrl')  >= 0,
+    shift: parts.indexOf('shift') >= 0,
+    alt:   parts.indexOf('alt')   >= 0,
+    meta:  parts.indexOf('meta')  >= 0,
+    key:   parts.filter(function (p) {
+      return p !== 'ctrl' && p !== 'shift' && p !== 'alt' && p !== 'meta';
+    })[0] || ''
+  };
+}
+
+// Attach one global listener (idempotent — only registered once)
+var keyComboListenerAttached = false;
+function ensureKeyComboListener() {
+  if (keyComboListenerAttached) return;
+  keyComboListenerAttached = true;
+  document.addEventListener('keydown', function (e) {
+    var activeTag = document.activeElement ? document.activeElement.tagName : '';
+    var isTyping = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement.isContentEditable;
+    keyComboListeners.forEach(function (entry) {
+      var combo = entry.combo;
+      if (combo.ctrl  !== e.ctrlKey)  return;
+      if (combo.shift !== e.shiftKey) return;
+      if (combo.alt   !== e.altKey)   return;
+      if (combo.meta  !== e.metaKey)  return;
+      if (e.key.toLowerCase() !== combo.key) return;
+      if (isTyping && !entry.allowTyping) return;
+      e.preventDefault();
+      entry.callback(e);
+    });
+  });
+}
+
+// OS.onKeyCombo(combo, callback, options)
+// options.allowTyping: if true, fires even when an input/textarea is focused
+function onKeyCombo(comboString, callback, options) {
+  ensureKeyComboListener();
+  var opts = options || {};
+  keyComboListeners.push({
+    combo: parseKeyCombo(comboString),
+    callback: callback,
+    allowTyping: !!opts.allowTyping
+  });
+}
+
+
+// ── Filesystem Helpers API ──
+
+function parseVFSPath(pathString) {
+  return pathString.replace(/\\/g, '/').split('/').filter(function (segment) {
+    return segment.length > 0;
+  });
+}
+
+function resolveVFSNode(pathString) {
+  var segments = parseVFSPath(pathString);
+  if (segments.length === 0) return null;
+  var currentNode = fileSystem[segments[0]];
+  if (!currentNode) return null;
+  for (var i = 1; i < segments.length; i++) {
+    if (!currentNode.children || !currentNode.children[segments[i]]) return null;
+    currentNode = currentNode.children[segments[i]];
+  }
+  return currentNode;
+}
+
+function resolveVFSParentAndName(pathString) {
+  var segments = parseVFSPath(pathString);
+  if (segments.length < 2) return null;
+  var entryName = segments[segments.length - 1];
+  var parentNode = resolveVFSNode(segments.slice(0, -1).join('/'));
+  if (!parentNode || parentNode.type !== 'folder') return null;
+  return { parent: parentNode, name: entryName };
+}
+
+function vfsTodayString() {
+  var now = new Date();
+  return now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+}
+
+function readFile(pathString) {
+  var node = resolveVFSNode(pathString);
+  if (!node || node.type !== 'file') return null;
+  return node.content;
+}
+
+function writeFile(pathString, content) {
+  var resolved = resolveVFSParentAndName(pathString);
+  if (!resolved) return false;
+  var existing = resolved.parent.children[resolved.name];
+  if (existing && existing.type === 'folder') return false;
+  resolved.parent.children[resolved.name] = {
+    type: 'file',
+    size: content.length,
+    modified: vfsTodayString(),
+    content: content
+  };
+  if (MicroOS.saveFilesystem) MicroOS.saveFilesystem();
+  return true;
+}
+
+function deleteFile(pathString) {
+  var resolved = resolveVFSParentAndName(pathString);
+  if (!resolved || !resolved.parent.children[resolved.name]) return false;
+  delete resolved.parent.children[resolved.name];
+  if (MicroOS.saveFilesystem) MicroOS.saveFilesystem();
+  return true;
+}
+
+function listDir(pathString) {
+  var node = resolveVFSNode(pathString);
+  if (!node || node.type !== 'folder') return null;
+  return Object.keys(node.children);
+}
+
+function fileExists(pathString) {
+  return resolveVFSNode(pathString) !== null;
+}
+
+
+// ── Desktop & System API ──
+
+function addDesktopWidget(html, x, y) {
+  var desktopEl = document.getElementById('desktop');
+  var widgetEl = document.createElement('div');
+  widgetEl.className = 'desktop-widget';
+  widgetEl.style.cssText =
+    'position:absolute;left:' + (x || 10) + 'px;top:' + (y || 10) + 'px;' +
+    'z-index:5;pointer-events:auto';
+  widgetEl.innerHTML = html;
+  desktopEl.appendChild(widgetEl);
+  return widgetEl;
+}
+
+function setTaskbarColor(cssValue) {
+  document.getElementById('taskbar').style.background = cssValue;
+}
+
+function setCursorStyle(cssValue) {
+  document.body.style.cursor = cssValue;
+}
+
+function getScreenSize() {
+  var taskbarHeight = 30;
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight - taskbarHeight
+  };
+}
+
 
 })();
