@@ -396,6 +396,7 @@ function createWindow(title, width, height, bodyHTML) {
     el.remove();
     windows = windows.filter(function (w) { return w.id !== winId; });
     updateTaskbar();
+    if (MicroOS.onWindowChanged) MicroOS.onWindowChanged();
   });
 
   return winObj;
@@ -658,6 +659,14 @@ document.addEventListener('keydown', function (e) {
   if (e.shiftKey && e.key === 'N' && !isTyping) {
     e.preventDefault();
     openApp('notepad');
+  }
+
+  if (e.shiftKey && e.key === 'Q' && !isTyping) {
+    e.preventDefault();
+    while (windows.length > 0) {
+      var closeBtn = windows[0].el.querySelector('.btn-close');
+      if (closeBtn) closeBtn.click(); else break;
+    }
   }
 
   if (e.shiftKey && e.key === 'W' && !isTyping) {
