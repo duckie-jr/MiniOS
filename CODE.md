@@ -928,3 +928,72 @@ w.el.querySelector('#asciiinp').addEventListener('input', function() {
   w.el.querySelector('#asciiout').textContent = lines.join('\\n');
 });
 ```
+
+---
+
+### Hacker Attack Simulation
+
+```js
+var w = OS.createWindow("SECURITY BREACH", 500, 340, "<div id='hackterm' style='background:#000;color:#0f0;font-family:Consolas,monospace;font-size:11px;height:100%;padding:8px;overflow-y:auto;white-space:pre-wrap'></div>");
+w.el.style.left='60px'; w.el.style.top='30px';
+var term = w.el.querySelector('#hackterm');
+var fakeIPs = ['194.32.78.'+Math.floor(Math.random()*255),'103.45.192.'+Math.floor(Math.random()*255),'77.91.68.'+Math.floor(Math.random()*255)];
+var attackIP = fakeIPs[Math.floor(Math.random()*3)];
+var lines = [
+  {t:'[ALERT] Unauthorized connection detected on port 443',c:'#f44',d:0},
+  {t:'[ALERT] Source IP: '+attackIP+' (UNRESOLVED)',c:'#f44',d:400},
+  {t:'[SYSTEM] Firewall bypassed — injecting rootkit payload...',c:'#f44',d:900},
+  {t:'> Enumerating filesystem...',c:'#0f0',d:1800},
+  {t:'  C:\\Windows\\system.ini .............. ACCESSED',c:'#0f0',d:2200},
+  {t:'  C:\\My Documents\\contacts.json ...... EXFILTRATING',c:'#ff0',d:2600},
+  {t:'  C:\\My Documents\\budget.csv ......... EXFILTRATING',c:'#ff0',d:2900},
+  {t:'  C:\\My Documents\\diary.txt .......... EXFILTRATING',c:'#ff0',d:3200},
+  {t:'  C:\\My Documents\\Work\\invoice.csv ... EXFILTRATING',c:'#ff0',d:3500},
+  {t:'> Credential dump in progress...',c:'#0f0',d:4000},
+  {t:'  admin:$6$rounds=5000$salt$h4ck3d... CRACKED',c:'#f84',d:4500},
+  {t:'  root:$6$rounds=5000$salt$0wn3d.... CRACKED',c:'#f84',d:4900},
+  {t:'> Establishing reverse shell on '+attackIP+':4444',c:'#0f0',d:5500},
+  {t:'  [████████████████████████████] 100%',c:'#0f0',d:6000},
+  {t:'> Reverse shell active. Spawning remote session...',c:'#0f0',d:6600},
+  {t:'',c:'#0f0',d:7200},
+  {t:'remote@'+attackIP+' $ whoami',c:'#0f0',d:7400},
+  {t:'root',c:'#fff',d:7800},
+  {t:'remote@'+attackIP+' $ cat /etc/shadow',c:'#0f0',d:8300},
+  {t:'root:$6$xZpKl:19422:0:99999:7:::',c:'#fff',d:8700},
+  {t:'remote@'+attackIP+' $ echo "YOU HAVE BEEN OWNED"',c:'#0f0',d:9300},
+  {t:'',c:'#0f0',d:9800},
+  {t:'  ██╗  ██╗ █████╗  ██████╗██╗  ██╗███████╗██████╗ ',c:'#f44',d:10000},
+  {t:'  ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗',c:'#f44',d:10050},
+  {t:'  ███████║███████║██║     █████╔╝ █████╗  ██║  ██║',c:'#f44',d:10100},
+  {t:'  ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══╝  ██║  ██║',c:'#f44',d:10150},
+  {t:'  ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██████╔╝',c:'#f44',d:10200},
+  {t:'  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝ ',c:'#f44',d:10250},
+  {t:'',c:'#0f0',d:10500},
+  {t:'> Encrypting all files with AES-256...',c:'#f44',d:10800},
+  {t:'  [██████████                    ] 34%',c:'#f44',d:11400},
+  {t:'  [████████████████████          ] 67%',c:'#f44',d:12000},
+  {t:'  [████████████████████████████  ] 93%',c:'#f44',d:12600},
+  {t:'',c:'#0f0',d:13200},
+  {t:'  ...just kidding 😄 you\'re fine. Close this window.',c:'#0f0',d:13500},
+];
+var timeouts = [];
+lines.forEach(function(line) {
+  timeouts.push(setTimeout(function() {
+    var el = document.createElement('div');
+    el.style.color = line.c;
+    el.textContent = line.t;
+    term.appendChild(el);
+    term.scrollTop = term.scrollHeight;
+  }, line.d));
+});
+var glitchIv = setInterval(function() {
+  if (Math.random() > 0.7) { document.body.style.filter = 'hue-rotate('+Math.floor(Math.random()*360)+'deg)'; setTimeout(function(){document.body.style.filter='';},80); }
+}, 500);
+var notifTimeout = setTimeout(function() {
+  OS.showNotification('⚠ SECURITY BREACH', 'Remote connection from ' + attackIP);
+}, 1000);
+var notifTimeout2 = setTimeout(function() {
+  OS.showNotification('⚠ DATA EXFILTRATION', 'Files are being uploaded to external server');
+}, 3500);
+w.el.querySelector('.btn-close').addEventListener('click', function() { clearInterval(glitchIv); timeouts.forEach(clearTimeout); clearTimeout(notifTimeout); clearTimeout(notifTimeout2); document.body.style.filter=''; });
+```
