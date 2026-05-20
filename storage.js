@@ -85,7 +85,6 @@ function saveSession() {
     var windowStates = [];
     OS.windows.forEach(function (windowObj) {
       var element = windowObj.el;
-      var bodyElement = element.querySelector('.window-body');
       windowStates.push({
         title: windowObj.title,
         minimized: windowObj.minimized,
@@ -93,10 +92,7 @@ function saveSession() {
         left: element.style.left,
         top: element.style.top,
         width: element.style.width,
-        height: element.style.height,
-        bodyHTML: bodyElement ? bodyElement.innerHTML : '',
-        zIndex: element.style.zIndex || '10',
-        hasFlex: bodyElement ? bodyElement.classList.contains('window-body-flex') : false
+        height: element.style.height
       });
     });
     var sessionData = { wallpaper: OS.getCurrentWallpaper(), windows: windowStates };
@@ -122,26 +118,43 @@ function loadSession() {
   } catch (error) { console.error('Failed to load session:', error); return false; }
 }
 
+// Map window titles to app names for restore
+var titleToAppName = {
+  'Untitled - Notepad': 'notepad',
+  'Calculator': 'calculator',
+  'My Documents': 'files',
+  'Command Prompt': 'terminal',
+  'Internet': 'browser',
+  'Paint': 'paint',
+  'Clock': 'clock',
+  'Minesweeper': 'minesweeper',
+  'Control Panel': 'settings',
+  'About Mini OS': 'about',
+  'Code Editor': 'codeeditor',
+  'Find Files': 'findfiles',
+  'Clipboard Manager': 'clipboardmanager'
+};
+
 function restorePendingWindows() {
   var pendingWindows = window._pendingWindowRestore;
   if (!pendingWindows) return;
   delete window._pendingWindowRestore;
   pendingWindows.forEach(function (windowState) {
-    var restoredWindow = OS.createWindow(
-      windowState.title,
-      parseInt(windowState.width) || 400,
-      parseInt(windowState.height) || 300,
-      windowState.bodyHTML
-    );
-    var element = restoredWindow.el;
-    element.style.left = windowState.left;
-    element.style.top = windowState.top;
-    element.style.width = windowState.width;
-    element.style.height = windowState.height;
-    element.style.zIndex = windowState.zIndex;
-    if (windowState.hasFlex) element.querySelector('.window-body').classList.add('window-body-flex');
-    if (windowState.maximized) { restoredWindow.maximized = true; element.classList.add('maximized'); }
-    if (windowState.minimized) { restoredWindow.minimized = true; element.classList.add('minimized'); }
+    var appName = titleToAppName[windowState.title];
+    if (appName) {
+      OS.openApp(appName);
+      // After the app opens, adjust the window position
+      var lastWindow = OS.windows[OS.windows.length - 1];
+      if (lastWindow) {
+        var element = lastWindow.el;
+        if (windowState.left) element.style.left = windowState.left;
+        if (windowState.top) element.style.top = windowState.top;
+        if (windowState.width) element.style.width = windowState.width;
+        if (windowState.height) element.style.height = windowState.height;
+        if (windowState.maximized) { lastWindow.maximized = true; element.classList.add('maximized'); }
+        if (windowState.minimized) { lastWindow.minimized = true; element.classList.add('minimized'); }
+      }
+    }
   });
 }
 
