@@ -4,7 +4,7 @@ A fully functional desktop operating system that runs entirely in the browser. B
 
 ### Demo
 
-Open `index.html` in any modern browser. That's it.
+Open `https://duckie-jr.github.io/MiniOS/` in any modern browser. That's it.
 
 ### Features
 
@@ -14,8 +14,9 @@ Open `index.html` in any modern browser. That's it.
 - **Start menu** with app launcher, user panel, shutdown, and log off
 - **Double-click titlebar** to maximize/restore
 - **Animated boot screen** with progress bar
-- **Keyboard shortcuts**: Shift+N (new notepad), Shift+W (close window), Shift+Tab (cycle windows), Shift+C (clipboard manager), Shift+F (find in notepad)
-- **Window snapping** via drag and drop
+- **Draggable desktop icons** — right-click desktop or press Shift+M to enter arrange mode, drag icons anywhere, positions saved to localStorage
+- **Keyboard shortcuts**: Shift+N (new notepad), Shift+W (close window), Shift+Q (close ALL windows), Shift+Tab (cycle windows), Shift+C (clipboard manager), Shift+F (find in notepad), Shift+M (desktop menu)
+- **Gear button** in bottom-right corner of desktop — click to open desktop menu if right-click doesn't work in your environment
 
 #### User Profiles
 - **Login screen** on startup — create, select, or delete user profiles
@@ -24,38 +25,46 @@ Open `index.html` in any modern browser. That's it.
 - **Log Off** saves everything and returns to the profile picker
 
 #### 13 Built-in Apps
-- **Notepad** — text editor with auto-save, find bar (Shift+F)
+- **Notepad** — text editor with auto-save, find bar (Shift+F when not typing in the editor)
 - **Calculator** — standard 4-function calculator with percent and sign toggle
-- **My Documents** — full file explorer with detail view, drag-and-drop, right-click context menus, upload, cut/copy/paste/rename/delete
-- **Command Prompt** — terminal with 25+ commands, tab completion, command history, pipe support
-- **Internet** — embedded browser with address bar (loads sites via iframe)
+- **My Documents** — full file explorer with detail view (Name, Size, Type, Date), drag-and-drop files into folders, right-click context menus, file upload, cut/copy/paste/rename/delete
+- **Command Prompt** — terminal with 25+ commands, tab completion, command history, pipe support, grep
+- **Internet** — embedded browser with address bar (loads sites via iframe, fills the full window)
 - **Paint** — freehand drawing with color palette and brush size
 - **Clock** — live digital clock with date display
 - **Minesweeper** — classic 9x9 grid with timer, flags, and win detection
-- **Control Panel** — wallpaper picker and system info
-- **Code Editor** — VS Code-style syntax highlighting for JS/HTML/CSS with Run button
+- **Control Panel** — wallpaper presets, custom wallpaper from uploaded image / filesystem image / solid color, system info
+- **Code Editor** — VS Code-style dark theme with syntax highlighting for JS/HTML/CSS, Run button that executes code or previews HTML/CSS
 - **Find Files** — search by filename across the entire filesystem
-- **Clipboard Manager** — shows history of everything you've cut/copied (Shift+C)
-- **About Mini OS** — version info
+- **Clipboard Manager** — shows history of everything you've cut/copied (Shift+C to open)
+- **About Mini OS** — version info with custom logo
 
 #### Virtual File System
-- **37+ files** across **10+ folders** with **14 file types** (`.txt`, `.md`, `.csv`, `.html`, `.json`, `.bat`, `.log`, `.cfg`, `.ini`, `.jpg`, `.png`, `.bmp`, `.m3u`, `.svg`, `.app`)
-- Files open in **type-specific viewers**: HTML renders in iframe, CSV as table, SVG with checkerboard preview, images in viewer
+- **37+ files** across **10+ folders** with **15 file types** (`.txt`, `.md`, `.csv`, `.html`, `.json`, `.bat`, `.log`, `.cfg`, `.ini`, `.jpg`, `.png`, `.bmp`, `.m3u`, `.svg`, `.app`)
+- Files open in **type-specific viewers**:
+  - `.html` renders in an iframe
+  - `.csv` displays as a formatted table
+  - `.svg` opens in a full viewer with zoom controls, background toggle (checkerboard/white/black/gray), and an Edit button to modify the SVG source live
+  - `.jpg/.png/.bmp` show in an image viewer
+  - `.app` files **execute as JavaScript** with full OS API access
+  - Everything else opens in Notepad (editable, auto-saves back)
 - **Upload real files** from your computer (saved to Downloads)
 - **Create, rename, delete** files and folders
 - **Cut/Copy/Paste** files between folders
 - **Drag and drop** files into folders visually
-- **Recycle Bin** — deleted files go here instead of being permanently lost, can restore to original location or empty the bin
-- **`.app` files** are executable — double-click runs custom JavaScript with full OS API access
+- **Recycle Bin** — deleted files go here with their original path remembered. Right-click items to restore to original location or permanently delete. Right-click empty space for Empty Bin and Restore All.
 
 #### Context Menus (different for each target)
-- **Desktop background** — Refresh, New Folder, New Text Document, Change Wallpaper, Properties
+- **Desktop background** — Arrange/Lock Icons, Reset Icon Positions, Refresh, New Folder, New Text Document, Change Wallpaper, Properties
 - **Desktop icons** — Open, Open in New Window, Properties
 - **Taskbar buttons** — Minimize/Restore, Maximize, Close
 - **File manager items** — Open, Cut, Copy, Rename, Delete
 - **File manager empty space** — Paste, New Folder, New Text File, Upload Files, Refresh
 - **Recycle Bin items** — Restore to original location, Delete Permanently
 - **Recycle Bin empty space** — Empty Recycle Bin, Restore All
+
+#### OS-Style Dialogs
+- All prompts and confirmations use **custom OS dialog windows** instead of browser `prompt()`/`confirm()` — immovable, centered, dark overlay background, closeable with X button, Enter/Escape keyboard support
 
 #### Terminal Commands
 The Command Prompt operates on the live virtual filesystem with **pipe support** (`|`):
@@ -64,7 +73,7 @@ The Command Prompt operates on the live virtual filesystem with **pipe support**
 |---------|-------------|
 | `dir` / `ls` | List directory with sizes and dates |
 | `cd <path>` | Change directory (`..` to go up) |
-| `tree` | Show folder tree |
+| `tree` | Show folder tree with unicode box-drawing |
 | `cat` / `type` | Print file contents |
 | `mkdir` | Create folder |
 | `mkfile` | Create empty file |
@@ -85,7 +94,7 @@ The Command Prompt operates on the live virtual filesystem with **pipe support**
 | `load` | Load filesystem from localStorage |
 | `export [file]` | Download filesystem as .json |
 | `import` | Load filesystem from .json file |
-| `reset` | Wipe user data (double confirmation) |
+| `reset` | Wipe user data (double confirmation, then reload) |
 | `pwd` | Print working directory |
 | `exit` | Close terminal |
 
@@ -131,10 +140,11 @@ cat todo.txt | grep milk
 Without a pipe, `grep` will tell you it needs piped input. It only works as the receiving end of a `|`.
 
 #### Persistence
-- **Auto-saves** filesystem and window state every 15 seconds + on page close
+- **Auto-saves** filesystem every 15 seconds + on page close
+- **Session saves instantly** when you close any window — closing all windows and reloading gives you a clean desktop
 - **Per-user storage** — each profile has separate data in localStorage
 - **Export/Import** — download your entire filesystem as a `.json` backup, import it on another machine
-- **Session restore** — open windows, positions, sizes, and wallpaper persist across reloads
+- **Wallpaper and icon positions** persist across reloads
 
 #### Creating Custom Apps
 
@@ -152,31 +162,49 @@ OS.prompt("What is your name?", "User", function(name) {
 
 **Available API:**
 - `OS.createWindow(title, width, height, bodyHTML)` — open a window
-- `OS.showNotification(title, message)` — show a toast
+- `OS.showNotification(title, message)` — show a toast notification
 - `OS.prompt(message, default, callback)` — OS-style input dialog
 - `OS.confirm(message, callback)` — OS-style yes/no dialog
-- `OS.openApp(name)` — launch a built-in app
-- `OS.windows` — array of open windows
-- `OS.fileSystem` — the entire virtual filesystem
+- `OS.openApp(name)` — launch a built-in app by name
+- `OS.windows` — array of all open windows
+- `OS.fileSystem` — the entire virtual filesystem tree
 - `OS.escapeHtml(str)` / `OS.formatFileSize(bytes)` — utilities
 - `OS.clipboardHistory` — array of clipboard history entries
 - `OS.recycleBin()` — access the Recycle Bin folder
 - `OS.saveFilesystem()` / `OS.exportFilesystem(name)` — persistence
+- `OS.getActiveUser()` — current logged-in username
+
+See **[SNIPPETS.md](SNIPPETS.md)** for 14 ready-to-run code examples including Matrix rain, bouncing ball animation, pixel art canvas, typing speed test, and more.
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Shift+N | New Notepad |
+| Shift+W | Close focused window |
+| Shift+Q | Close ALL windows |
+| Shift+Tab | Cycle to next window |
+| Shift+C | Open Clipboard Manager |
+| Shift+F | Find in Notepad (when not typing) |
+| Shift+M | Open desktop menu |
 
 ### Project Structure
 
 ```
-index.html    — HTML shell (login, boot, desktop, taskbar, start menu)
-main.js       — OS core (window manager, boot, context menus, shortcuts, dialogs, API)
-storage.js    — Persistence (per-user save/load, profiles, export/import, session restore)
-apps.js       — All 13 apps (each self-registers via OS.registerApp)
-style.css     — Full XP-inspired theme with dialog and login styles
+index.html     — HTML shell (login, boot, desktop, taskbar, start menu)
+main.js        — OS core (window manager, boot, context menus, shortcuts, dialogs, icon dragging, API)
+storage.js     — Persistence (per-user save/load, profiles, export/import, session restore)
+apps.js        — All 13 apps (each self-registers via OS.registerApp)
+style.css      — Full XP-inspired theme with dialog and login styles
+SNIPPETS.md    — 14 ready-to-run code snippets for the Code Editor
+README.md      — This file
 ```
 
 ### Tech
 
 - **Zero dependencies** — pure HTML, CSS, vanilla JS
-- **No build step** — open `index.html` and it works
-- **~3000 lines** of JS split across three files
+- **No build step** — open `https://duckie-jr.github.io/MiniOS/` and it works
+- **~3500 lines** of JS split across three files
 - All icons are inline SVGs — no external assets
 - Original logo and branding (no copyrighted material)
+- Works in Chrome, Firefox, Edge, Safari
