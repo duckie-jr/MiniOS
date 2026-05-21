@@ -1426,3 +1426,570 @@ renderDashboard();
 dashWin.el.querySelector('.btn-close').addEventListener('click', function() {
   clearInterval(dashIv);
 });
+
+---
+
+### Window Typewriter
+
+Demonstrates: `createWindow` · `moveWindow` · `resizeWindow` · `getScreenSize` · `showToast` · `flashWindow`
+
+Types a dramatic message letter-by-letter into a terminal window while it slowly walks itself across the screen. Every line changes color as it finishes. Nothing to click — just watch.
+
+```js
+var SCRIPT = [
+  { text: 'Initializing Mini OS subsystems...', color: '#888' },
+  { text: 'Loading virtual filesystem...      OK', color: '#69db7c' },
+  { text: 'Mounting C: drive...               OK', color: '#69db7c' },
+  { text: 'Starting window manager...         OK', color: '#69db7c' },
+  { text: 'Detecting user profile...', color: '#888' },
+  { text: 'User: ' + (OS.getActiveUser() || 'Guest'), color: '#7afcff' },
+  { text: 'Open windows: ' + OS.windows.length, color: '#7afcff' },
+  { text: '', color: '#0f0' },
+  { text: 'All systems operational.', color: '#fff' },
+  { text: '> MINI OS IS READY', color: '#ffb347' }
+];
+
+var screen = OS.getScreenSize();
+
+var w = OS.createWindow('Boot Log', 420, 220,
+  '<div id="ttyOut" style="height:100%;background:#0c0c0c;padding:10px 14px;' +
+  'font-family:Consolas,monospace;font-size:12px;line-height:1.7;overflow:hidden"></div>'
+);
+
+// Start off-screen left, walk to center
+OS.moveWindow(w, -440, Math.floor((screen.height - 240) / 2));
+
+var ttyOut  = w.el.querySelector('#ttyOut');
+var queue   = [];   // { char, lineEl } entries
+var lineEls = [];   // one <div> per script line
+
+// Pre-build DOM lines (hidden) and fill the queue
+SCRIPT.forEach(function(entry) {
+  var lineEl = document.createElement('div');
+  lineEl.style.color   = '#555'; // dim until the line is fully typed
+  lineEl.style.minHeight = '1em';
+  ttyOut.appendChild(lineEl);
+  lineEls.push({ el: lineEl, finalColor: entry.color });
+
+  for (var ci = 0; ci < entry.text.length; ci++) {
+    queue.push({ lineEl: lineEl, char: entry.text[ci], finalColor: entry.color });
+  }
+  // Sentinel: marks end of this line
+  queue.push({ lineEl: lineEl, char: null, finalColor: entry.color });
+});
+
+var queueIndex = 0;
+var windowX    = -440;
+var targetX    = Math.floor((screen.width - 440) / 2);
+
+var typeIv = setInterval(function() {
+  if (!w.el.isConnected) { clearInterval(typeIv); return; }
+
+  // Type 2 characters per tick for a snappy but readable pace
+  for (var t = 0; t < 2 && queueIndex < queue.length; t++) {
+    var item = queue[queueIndex++];
+    if (item.char === null) {
+      // Line complete — reveal its final color
+      item.lineEl.style.color = item.finalColor;
+    } else {
+      item.lineEl.textContent += item.char;
+    }
+  }
+
+  // Walk the window rightward toward center
+  if (windowX < targetX) {
+    windowX = Math.min(targetX, windowX + 6);
+    OS.moveWindow(w, Math.round(windowX), Math.floor((screen.height - 240) / 2));
+  }
+
+  if (queueIndex >= queue.length) {
+    clearInterval(typeIv);
+    OS.flashWindow(w);
+    OS.showToast('Boot sequence complete', 2000);
+  }
+}, 30);
+
+w.el.querySelector('.btn-close').addEventListener('click', function() {
+  clearInterval(typeIv);
+});
+```
+
+---
+
+### Session Manager
+
+Demonstrates: `windows` · `moveWindow` · `resizeWindow` · `readFile` · `writeFile` · `fileExists` · `listDir` · `alert` · `confirm` · `showToast` · `prompt`
+
+Saves the exact position and size of every open window into a named slot. Load a saved session later and every matching window snaps back to where it was.
+
+```js
+var SESSIONS_PATH = 'C:/My Documents/sessions.json';
+
+function loadAllSessions() {
+  if (!OS.fileExists(SESSIONS_PATH)) return {};
+  try { return JSON.parse(OS.readFile(SESSIONS_PATH)); }
+  catch (e) { return {}; }
+}
+
+function saveAllSessions(data) {
+  OS.writeFile(SESSIONS_PATH, JSON.stringify(data, null, 2));
+}
+
+function captureCurrentLayout() {
+  return OS.windows.map(function(win) {
+    return {
+      title:     win.title,
+      left:      win.el.style.left,
+      top:       win.el.style.top,
+      width:     win.el.style.width,
+      height:    win.el.style.height,
+      minimized: win.minimized,
+      maximized: win.maximized
+    };
+  });
+}
+
+function applyLayout(layout) {
+  var restored = 0;
+  layout.forEach(function(saved) {
+    var match = OS.windows.find(function(w) { return w.title === saved.title; });
+    if (!match) return;
+    if (saved.maximized) {
+      match.maximized = true;
+      match.el.classList.add('maximized');
+      return; // maximized windows don't need positioning
+    }
+    match.maximized = false;
+    match.el.classList.remove('maximized');
+    if (saved.left)   match.el.style.left   = saved.left;
+    if (saved.top)    match.el.style.top    = saved.top;
+    if (saved.width)  match.el.style.width  = saved.width;
+    if (saved.height) match.el.style.height = saved.height;
+    if (saved.minimized) { match.minimized = true; match.el.classList.add('minimized'); }
+    else { match.minimized = false; match.el.classList.remove('minimized'); }
+    restored++;
+  });
+  return restored;
+}
+
+function renderSessionList() {
+  var sessions = loadAllSessions();
+  var names    = Object.keys(sessions);
+
+  listEl.innerHTML = names.length === 0
+    ? '<div style="padding:12px;text-align:center;color:#999;font-size:11px">No sessions saved yet</div>'
+    : names.map(function(name) {
+        var session = sessions[name];
+        var count   = session.layout ? session.layout.length : 0;
+        return '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;' +
+               'border-bottom:1px solid #eee;font-size:11px">' +
+          '<div style="flex:1">' +
+            '<div style="font-weight:700">' + OS.escapeHtml(name) + '</div>' +
+            '<div style="font-size:10px;color:#888">' + count + ' window' + (count !== 1 ? 's' : '') +
+              ' · saved ' + (session.savedAt || '?') + '</div>' +
+          '</div>' +
+          '<button class="btnLoad" data-name="' + OS.escapeHtml(name) + '" ' +
+            'style="padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit">Load</button>' +
+          '<button class="btnDel"  data-name="' + OS.escapeHtml(name) + '" ' +
+            'style="padding:2px 6px;font-size:10px;cursor:pointer;color:#c44;font-family:inherit">✕</button>' +
+        '</div>';
+      }).join('');
+
+  listEl.querySelectorAll('.btnLoad').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var sessions = loadAllSessions();
+      var name     = btn.getAttribute('data-name');
+      var session  = sessions[name];
+      if (!session) return;
+      var count = applyLayout(session.layout || []);
+      OS.showToast('Restored "' + name + '" — ' + count + ' window' + (count !== 1 ? 's' : '') + ' repositioned', 2000);
+    });
+  });
+
+  listEl.querySelectorAll('.btnDel').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var name = btn.getAttribute('data-name');
+      OS.confirm('Delete session "' + name + '"?', function(yes) {
+        if (!yes) return;
+        var sessions = loadAllSessions();
+        delete sessions[name];
+        saveAllSessions(sessions);
+        renderSessionList();
+        OS.showToast('Session deleted', 1000);
+      });
+    });
+  });
+}
+
+var w = OS.createWindow('Session Manager', 360, 320,
+  '<div style="display:flex;flex-direction:column;height:100%;background:#fff">' +
+    '<div style="padding:6px 8px;background:#ece9d8;border-bottom:1px solid #ccc;' +
+         'display:flex;gap:6px;align-items:center;flex-shrink:0">' +
+      '<span style="font-size:11px;font-weight:700;flex:1">Saved Sessions</span>' +
+      '<button id="btnSave"    style="padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">💾 Save Current</button>' +
+      '<button id="btnRefresh" style="padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit">↺</button>' +
+    '</div>' +
+    '<div id="sessionList" style="flex:1;overflow-y:auto"></div>' +
+    '<div style="padding:4px 8px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#777">' +
+      OS.windows.length + ' window' + (OS.windows.length !== 1 ? 's' : '') + ' currently open' +
+    '</div>' +
+  '</div>'
+);
+w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+var listEl = w.el.querySelector('#sessionList');
+
+w.el.querySelector('#btnSave').addEventListener('click', function() {
+  OS.prompt('Session name:', 'Layout ' + new Date().toLocaleTimeString(), function(name) {
+    if (!name) return;
+    var sessions = loadAllSessions();
+    sessions[name] = { savedAt: new Date().toLocaleTimeString(), layout: captureCurrentLayout() };
+    saveAllSessions(sessions);
+    renderSessionList();
+    OS.showToast('Session "' + name + '" saved (' + OS.windows.length + ' windows)', 1800);
+  });
+});
+
+w.el.querySelector('#btnRefresh').addEventListener('click', renderSessionList);
+renderSessionList();
+```
+
+---
+
+### Pomodoro Timer
+
+Demonstrates: `addDesktopWidget` · `onKeyCombo` · `alert` · `showToast` · `showNotification` · `setTaskbarColor` · `setCursorStyle`
+
+A 25 min / 5 min work–break cycle timer that lives as a widget on the desktop. The taskbar colour shifts red during work and green during breaks. Press **Alt+P** to start/pause from anywhere.
+
+```js
+var WORK_SECONDS  = 25 * 60;
+var BREAK_SECONDS = 5  * 60;
+
+var timeLeft    = WORK_SECONDS;
+var isWork      = true;
+var running     = false;
+var timerIv     = null;
+var cycleCount  = 0;
+
+var XP_BAR = 'linear-gradient(180deg,#1f53d1 0%,#3165d4 4%,#2e5bc6 8%,#1845b0 92%,#102e8a 100%)';
+
+function formatTime(seconds) {
+  var m = Math.floor(seconds / 60);
+  var s = seconds % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateWidget() {
+  var timeEl  = widget.querySelector('#pomTime');
+  var labelEl = widget.querySelector('#pomLabel');
+  var barEl   = widget.querySelector('#pomBar');
+  var total   = isWork ? WORK_SECONDS : BREAK_SECONDS;
+
+  if (timeEl)  timeEl.textContent  = formatTime(timeLeft);
+  if (labelEl) labelEl.textContent = isWork ? '🍅 Work' : '☕ Break';
+  if (barEl) {
+    var pct = Math.round(((total - timeLeft) / total) * 100);
+    barEl.style.width = pct + '%';
+    barEl.style.background = isWork ? '#e74c3c' : '#27ae60';
+  }
+}
+
+function startTimer() {
+  if (timerIv) return;
+  running = true;
+  OS.setTaskbarColor(isWork ? 'linear-gradient(180deg,#8b0000,#550000)' : 'linear-gradient(180deg,#1a4a1a,#0d2e0d)');
+  OS.showToast((isWork ? '🍅 Work session started' : '☕ Break started') + ' — ' + formatTime(timeLeft), 2000);
+
+  timerIv = setInterval(function() {
+    timeLeft--;
+    updateWidget();
+
+    if (timeLeft <= 0) {
+      clearInterval(timerIv);
+      timerIv  = null;
+      running  = false;
+
+      if (isWork) {
+        cycleCount++;
+        OS.showNotification('🍅 Pomodoro Complete!', 'Cycle #' + cycleCount + ' done. Time for a break!');
+        OS.alert('Pomodoro Complete!', 'Cycle #' + cycleCount + ' done.\nTake a 5-minute break.');
+        isWork   = false;
+        timeLeft = BREAK_SECONDS;
+      } else {
+        OS.showNotification('☕ Break Over', 'Back to work!');
+        OS.alert('Break Over', 'Time to focus again.\nPress Alt+P to start the next session.');
+        isWork   = true;
+        timeLeft = WORK_SECONDS;
+      }
+      OS.setTaskbarColor(XP_BAR);
+      updateWidget();
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(timerIv);
+  timerIv = null;
+  running = false;
+  OS.setTaskbarColor(XP_BAR);
+  OS.showToast('Paused at ' + formatTime(timeLeft), 1500);
+}
+
+function resetTimer() {
+  pauseTimer();
+  isWork   = true;
+  timeLeft = WORK_SECONDS;
+  OS.setTaskbarColor(XP_BAR);
+  updateWidget();
+  OS.showToast('Timer reset', 1000);
+}
+
+// Desktop widget
+var widget = OS.addDesktopWidget(
+  '<div style="background:rgba(10,10,20,.75);border-radius:8px;padding:10px 14px;' +
+    'font-family:Consolas,monospace;min-width:160px;box-shadow:0 2px 12px rgba(0,0,0,.5)">' +
+    '<div id="pomLabel" style="color:#aaa;font-size:11px;margin-bottom:2px">🍅 Work</div>' +
+    '<div id="pomTime"  style="color:#fff;font-size:28px;font-weight:700;letter-spacing:2px">' + formatTime(WORK_SECONDS) + '</div>' +
+    '<div style="background:rgba(255,255,255,.15);border-radius:3px;height:4px;margin-top:6px;overflow:hidden">' +
+      '<div id="pomBar" style="height:100%;width:0%;background:#e74c3c;transition:width .8s linear;border-radius:3px"></div>' +
+    '</div>' +
+    '<div style="margin-top:6px;font-size:10px;color:#666;text-align:center">Alt+P start/pause</div>' +
+  '</div>',
+  window.innerWidth - 200, 80
+);
+
+// Alt+P to start / pause
+OS.onKeyCombo('Alt+p', function() {
+  if (running) pauseTimer(); else startTimer();
+});
+
+// Control window
+var ctrl = OS.createWindow('Pomodoro', 240, 120,
+  '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+  'height:100%;gap:8px;background:#ece9d8">' +
+    '<div style="font-size:11px;color:#555">Alt+P to start / pause from anywhere</div>' +
+    '<div style="display:flex;gap:6px">' +
+      '<button id="pBtnStart" style="padding:4px 14px;cursor:pointer;font-family:inherit">▶ Start</button>' +
+      '<button id="pBtnPause" style="padding:4px 14px;cursor:pointer;font-family:inherit">⏸ Pause</button>' +
+      '<button id="pBtnReset" style="padding:4px 14px;cursor:pointer;font-family:inherit">↺ Reset</button>' +
+    '</div>' +
+  '</div>'
+);
+
+ctrl.el.querySelector('#pBtnStart').addEventListener('click', startTimer);
+ctrl.el.querySelector('#pBtnPause').addEventListener('click', pauseTimer);
+ctrl.el.querySelector('#pBtnReset').addEventListener('click', resetTimer);
+
+ctrl.el.querySelector('.btn-close').addEventListener('click', function() {
+  pauseTimer();
+  widget.remove();
+  OS.setTaskbarColor(XP_BAR);
+});
+```
+
+---
+
+### Markdown Viewer
+
+Demonstrates: `readFile` · `listDir` · `fileExists` · `createWindow` · `escapeHtml` · `showToast` · `resizeWindow` · `getScreenSize`
+
+Opens any `.md` file on the filesystem and renders it as styled HTML — headings, bold, italic, inline code, lists, and horizontal rules. Pick a file from the sidebar to preview it.
+
+```js
+function renderMarkdown(raw) {
+  var html = OS.escapeHtml(raw)
+    // Headings
+    .replace(/^### (.+)$/gm,  '<h3 style="font-size:13px;margin:10px 0 4px;color:#003399">$1</h3>')
+    .replace(/^## (.+)$/gm,   '<h2 style="font-size:15px;margin:12px 0 4px;color:#003399;border-bottom:1px solid #ccc;padding-bottom:3px">$1</h2>')
+    .replace(/^# (.+)$/gm,    '<h1 style="font-size:18px;margin:14px 0 6px;color:#003399">$1</h1>')
+    // Horizontal rule
+    .replace(/^---+$/gm,      '<hr style="border:none;border-top:1px solid #ccc;margin:10px 0" />')
+    // Checkboxes (must come before bold)
+    .replace(/- \[x\] (.+)/g, '<div style="padding:1px 0">✅ <s style="color:#999">$1</s></div>')
+    .replace(/- \[ \] (.+)/g, '<div style="padding:1px 0">⬜ $1</div>')
+    // Unordered list items
+    .replace(/^- (.+)$/gm,    '<div style="padding:1px 0 1px 12px">• $1</div>')
+    // Bold and italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,     '<em>$1</em>')
+    // Inline code
+    .replace(/`(.+?)`/g,       '<code style="background:#f0f0f0;padding:0 4px;font-family:Consolas,monospace;font-size:11px;border-radius:2px">$1</code>')
+    // Blank lines → spacing
+    .replace(/\n\n/g, '<div style="height:6px"></div>')
+    .replace(/\n/g,   '<br>');
+  return html;
+}
+
+function findAllMarkdownFiles() {
+  var results = [];
+  function scan(node, path) {
+    if (!node || !node.children) return;
+    Object.keys(node.children).forEach(function(name) {
+      var child    = node.children[name];
+      var fullPath = path + '/' + name;
+      if (child.type === 'file' && name.toLowerCase().endsWith('.md')) {
+        results.push({ name: name, path: fullPath });
+      }
+      if (child.type === 'folder') scan(child, fullPath);
+    });
+  }
+  scan(OS.fileSystem['C:'], 'C:');
+  return results;
+}
+
+var screen  = OS.getScreenSize();
+var allMd   = findAllMarkdownFiles();
+
+var w = OS.createWindow('Markdown Viewer', 580, 420,
+  '<div style="display:flex;height:100%">' +
+    '<div style="width:160px;flex-shrink:0;border-right:1px solid #ccc;display:flex;flex-direction:column;background:#f8f8f8">' +
+      '<div style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:11px;font-weight:700">' +
+        allMd.length + ' .md file' + (allMd.length !== 1 ? 's' : '') +
+      '</div>' +
+      '<div id="mdFileList" style="flex:1;overflow-y:auto"></div>' +
+    '</div>' +
+    '<div style="flex:1;display:flex;flex-direction:column">' +
+      '<div id="mdTitle" style="padding:4px 10px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:11px;font-weight:700;color:#003399">Select a file</div>' +
+      '<div id="mdBody"  style="flex:1;overflow-y:auto;padding:12px 16px;font-size:12px;font-family:Tahoma,sans-serif;line-height:1.6;color:#222"></div>' +
+    '</div>' +
+  '</div>'
+);
+w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+var mdFileList = w.el.querySelector('#mdFileList');
+var mdTitle    = w.el.querySelector('#mdTitle');
+var mdBody     = w.el.querySelector('#mdBody');
+
+function openMdFile(file) {
+  var content = OS.readFile(file.path);
+  mdTitle.textContent = file.name + '  (' + file.path + ')';
+  mdBody.innerHTML    = content !== null ? renderMarkdown(content) : '<div style="color:#999;padding:10px">Could not read file.</div>';
+  // Highlight active file
+  mdFileList.querySelectorAll('[data-path]').forEach(function(row) {
+    row.style.background = row.getAttribute('data-path') === file.path ? '#dde8ff' : '';
+  });
+}
+
+if (allMd.length === 0) {
+  mdFileList.innerHTML = '<div style="padding:8px;font-size:10px;color:#999">No .md files found</div>';
+} else {
+  mdFileList.innerHTML = allMd.map(function(file) {
+    return '<div data-path="' + OS.escapeHtml(file.path) + '" ' +
+      'style="padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #eee;' +
+      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + OS.escapeHtml(file.path) + '">' +
+      '📝 ' + OS.escapeHtml(file.name) + '</div>';
+  }).join('');
+
+  mdFileList.querySelectorAll('[data-path]').forEach(function(row) {
+    row.addEventListener('mouseenter', function() {
+      if (row.style.background !== 'rgb(221, 232, 255)') row.style.background = '#f0f4ff';
+    });
+    row.addEventListener('mouseleave', function() {
+      if (row.style.background !== 'rgb(221, 232, 255)') row.style.background = '';
+    });
+    row.addEventListener('click', function() {
+      var file = allMd.find(function(f) { return f.path === row.getAttribute('data-path'); });
+      if (file) openMdFile(file);
+    });
+  });
+
+  // Open the first file automatically
+  openMdFile(allMd[0]);
+}
+```
+
+---
+
+### Chaos Mode
+
+Demonstrates: `shakeWindow` · `flashWindow` · `setWindowOpacity` · `moveWindow` · `resizeWindow` · `setTaskbarColor` · `windows` · `showToast` · `pinWindow`
+
+Every 600ms, a random window gets a random effect. The more windows you have open, the more chaotic it gets. Open 5+ apps first for full effect.
+
+```js
+var chaosIv  = null;
+var running  = false;
+var XP_BAR   = 'linear-gradient(180deg,#1f53d1 0%,#3165d4 4%,#2e5bc6 8%,#1845b0 92%,#102e8a 100%)';
+var hue      = 0;
+
+var EFFECTS = [
+  function(win) { OS.shakeWindow(win); },
+  function(win) { OS.flashWindow(win); },
+  function(win) { OS.setWindowOpacity(win, 0.2 + Math.random() * 0.8); },
+  function(win) {
+    var screen = OS.getScreenSize();
+    OS.moveWindow(win,
+      Math.floor(Math.random() * (screen.width  - 280)),
+      Math.floor(Math.random() * (screen.height - 160))
+    );
+  },
+  function(win) {
+    OS.resizeWindow(win,
+      260 + Math.floor(Math.random() * 300),
+      150 + Math.floor(Math.random() * 200)
+    );
+  },
+  function(win) { OS.setWindowOpacity(win, 1); }, // mercy — restore opacity
+];
+
+function tick() {
+  var targets = OS.windows.filter(function(w) { return w !== ctrlWin && !w.minimized; });
+  if (targets.length === 0) return;
+
+  // Pick a random window and a random effect
+  var randomWindow = targets[Math.floor(Math.random() * targets.length)];
+  var randomEffect = EFFECTS[Math.floor(Math.random() * EFFECTS.length)];
+  randomEffect(randomWindow);
+
+  // Cycle the taskbar hue for extra visual chaos
+  hue = (hue + 15) % 360;
+  OS.setTaskbarColor('linear-gradient(180deg, hsl(' + hue + ',80%,35%), hsl(' + ((hue + 40) % 360) + ',70%,20%))');
+}
+
+function startChaos() {
+  if (running) return;
+  running  = true;
+  chaosIv  = setInterval(tick, 600);
+  btnStart.disabled = true;
+  btnStop.disabled  = false;
+  OS.showToast('🌀 Chaos Mode active', 1500);
+}
+
+function stopChaos() {
+  clearInterval(chaosIv);
+  chaosIv  = null;
+  running  = false;
+  btnStart.disabled = false;
+  btnStop.disabled  = true;
+  // Restore all windows to full opacity
+  OS.windows.forEach(function(w) { OS.setWindowOpacity(w, 1); });
+  OS.setTaskbarColor(XP_BAR);
+  OS.showToast('Chaos stopped — windows restored', 1500);
+}
+
+var ctrlWin = OS.createWindow('Chaos Mode', 280, 150,
+  '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+  'height:100%;gap:10px;background:#1a0a2e;color:#fff">' +
+    '<div style="font-size:18px">🌀 Chaos Mode</div>' +
+    '<div style="font-size:10px;color:#888;text-align:center">Open 5+ apps first for best results</div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button id="chaosStart" style="padding:5px 18px;cursor:pointer;font-family:inherit;' +
+        'background:#8b0000;color:#fff;border:none;border-radius:3px;font-size:12px">▶ Start</button>' +
+      '<button id="chaosStop"  style="padding:5px 18px;cursor:pointer;font-family:inherit;' +
+        'background:#333;color:#aaa;border:none;border-radius:3px;font-size:12px" disabled>■ Stop</button>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#555">Applies random effects every 600ms</div>' +
+  '</div>'
+);
+OS.pinWindow(ctrlWin);
+
+var btnStart = ctrlWin.el.querySelector('#chaosStart');
+var btnStop  = ctrlWin.el.querySelector('#chaosStop');
+
+btnStart.addEventListener('click', startChaos);
+btnStop.addEventListener('click',  stopChaos);
+
+ctrlWin.el.querySelector('.btn-close').addEventListener('click', function() {
+  stopChaos();
+});
