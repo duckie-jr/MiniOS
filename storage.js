@@ -85,17 +85,26 @@ function saveSession() {
     var windowStates = [];
     OS.windows.forEach(function (windowObj) {
       var element = windowObj.el;
+      // Skip windows created by custom code (no appName) — they can't be restored
+      if (!windowObj.appName) return;
       windowStates.push({
-        title: windowObj.title,
+        appName:   windowObj.appName,
+        title:     windowObj.title,
         minimized: windowObj.minimized,
         maximized: windowObj.maximized,
-        left: element.style.left,
-        top: element.style.top,
-        width: element.style.width,
-        height: element.style.height
+        left:      element.style.left,
+        top:       element.style.top,
+        width:     element.style.width,
+        height:    element.style.height
       });
     });
-    var sessionData = { wallpaper: OS.getCurrentWallpaper(), windows: windowStates };
+    // Save the full wallpaper CSS so custom wallpapers survive reload too
+    var desktopEl = document.getElementById('desktop');
+    var sessionData = {
+      wallpaper:    OS.getCurrentWallpaper(),
+      wallpaperCSS: desktopEl ? desktopEl.style.background : null,
+      windows:      windowStates
+    };
     localStorage.setItem(getUserSessionKey(activeUserName), JSON.stringify(sessionData));
     return true;
   } catch (error) { console.error('Failed to save session:', error); return false; }
@@ -107,9 +116,13 @@ function loadSession() {
     var saved = localStorage.getItem(getUserSessionKey(activeUserName));
     if (!saved) return false;
     var sessionData = JSON.parse(saved);
-    if (typeof sessionData.wallpaper === 'number') {
+    var desktopElLoad = document.getElementById('desktop');
+    if (sessionData.wallpaperCSS) {
+      // Restore exact CSS — handles both preset gradients and custom uploaded wallpapers
+      if (desktopElLoad) desktopElLoad.style.background = sessionData.wallpaperCSS;
+    } else if (typeof sessionData.wallpaper === 'number') {
       OS.setCurrentWallpaper(sessionData.wallpaper);
-      document.getElementById('desktop').style.background = OS.wallpapers[sessionData.wallpaper];
+      if (desktopElLoad) desktopElLoad.style.background = OS.wallpapers[sessionData.wallpaper];
     }
     if (sessionData.windows && sessionData.windows.length > 0) {
       window._pendingWindowRestore = sessionData.windows;
@@ -137,23 +150,40 @@ var titleToAppName = {
 
 function restorePendingWindows() {
   var pendingWindows = window._pendingWindowRestore;
-  if (!pendingWindows) return;
+  if (!pendingWindows || pendingWindows.length === 0) return;
   delete window._pendingWindowRestore;
+
   pendingWindows.forEach(function (windowState) {
-    var appName = titleToAppName[windowState.title];
-    if (appName) {
-      OS.openApp(appName);
-      // After the app opens, adjust the window position
-      var lastWindow = OS.windows[OS.windows.length - 1];
-      if (lastWindow) {
-        var element = lastWindow.el;
-        if (windowState.left) element.style.left = windowState.left;
-        if (windowState.top) element.style.top = windowState.top;
-        if (windowState.width) element.style.width = windowState.width;
-        if (windowState.height) element.style.height = windowState.height;
-        if (windowState.maximized) { lastWindow.maximized = true; element.classList.add('maximized'); }
-        if (windowState.minimized) { lastWindow.minimized = true; element.classList.add('minimized'); }
-      }
+    // Prefer the saved appName; fall back to the legacy title→app lookup for old sessions
+    var appName = windowState.appName || titleToAppName[windowState.title];
+    if (!appName) return;
+
+    // Count windows before opening so we can find the exact new one(s)
+    var countBefore = OS.windows.length;
+    OS.openApp(appName);
+
+    // Grab only the windows that were just created by this openApp call
+    var newWindows = OS.windows.slice(countBefore);
+    if (newWindows.length === 0) return;
+
+    // Apply saved geometry to the last window the app created
+    var win = newWindows[newWindows.length - 1];
+    var el  = win.el;
+
+    if (windowState.maximized) {
+      win.maximized = true;
+      el.classList.add('maximized');
+      return; // maximized windows don't need explicit left/top/width/height
+    }
+
+    if (windowState.left)   el.style.left   = windowState.left;
+    if (windowState.top)    el.style.top    = windowState.top;
+    if (windowState.width)  el.style.width  = windowState.width;
+    if (windowState.height) el.style.height = windowState.height;
+
+    if (windowState.minimized) {
+      win.minimized = true;
+      el.classList.add('minimized');
     }
   });
 }
