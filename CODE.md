@@ -912,3 +912,517 @@ w.el.querySelector('#btnForceSave').addEventListener('click', function() {
   var ok = OS.saveFilesystem();
   OS.showToast(ok ? '💾 Saved to localStorage ✓' : '⚠ Save failed (no active user?)', 2000);
 });
+
+---
+
+### Filesystem Full-Text Search
+
+Demonstrates: `readFile` · `listDir` · `fileExists` · `escapeHtml` · `openApp` · `showToast` · `alert`
+
+Recursively scans every file on `C:` for a search term and shows matching lines with context. Click any result row to open that file in Notepad.
+
+```js
+var w = OS.createWindow('Search Files', 500, 380,
+  '<div style="display:flex;flex-direction:column;height:100%;background:#fff">' +
+    '<div style="display:flex;gap:6px;padding:6px 8px;background:#ece9d8;border-bottom:1px solid #ccc;flex-shrink:0">' +
+      '<input id="searchInput" style="flex:1;padding:4px 8px;font-size:12px;border:2px inset #c8c4b8;font-family:inherit" placeholder="Search file contents..." />' +
+      '<button id="searchBtn" style="padding:4px 14px;font-size:11px;cursor:pointer;font-family:inherit">Search</button>' +
+    '</div>' +
+    '<div id="searchResults" style="flex:1;overflow-y:auto"></div>' +
+    '<div id="searchStatus" style="padding:3px 8px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#777;flex-shrink:0">Ready</div>' +
+  '</div>'
+);
+w.el.querySelector('.window-body').classList.add('window-body-flex');
+
+var searchInput   = w.el.querySelector('#searchInput');
+var searchResults = w.el.querySelector('#searchResults');
+var searchStatus  = w.el.querySelector('#searchStatus');
+
+function searchAllFiles(query) {
+  if (!query.trim()) return;
+  var term    = query.toLowerCase();
+  var matches = [];
+
+  function scanNode(node, path) {
+    if (!node || !node.children) return;
+    Object.keys(node.children).forEach(function(name) {
+      var child    = node.children[name];
+      var fullPath = path + '/' + name;
+      if (child.type === 'folder') {
+        scanNode(child, fullPath);
+      } else if (child.type === 'file') {
+        var content = OS.readFile(fullPath);
+        if (!content) return;
+        var lines = content.split('\n');
+        lines.forEach(function(line, lineIndex) {
+          if (line.toLowerCase().includes(term)) {
+            matches.push({ path: fullPath, line: line.trim(), lineNum: lineIndex + 1 });
+          }
+        });
+      }
+    });
+  }
+
+  scanNode(OS.fileSystem['C:'], 'C:');
+
+  searchStatus.textContent = matches.length === 0
+    ? 'No results for "' + query + '"'
+    : matches.length + ' match' + (matches.length !== 1 ? 'es' : '') + ' in ' +
+      [...new Set(matches.map(function(m) { return m.path; }))].length + ' file(s)';
+
+  if (matches.length === 0) {
+    searchResults.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:12px">No matches found for <strong>' +
+      OS.escapeHtml(query) + '</strong></div>';
+    return;
+  }
+
+  // Group by file path
+  var byFile = {};
+  matches.forEach(function(m) {
+    if (!byFile[m.path]) byFile[m.path] = [];
+    byFile[m.path].push(m);
+  });
+
+  searchResults.innerHTML = Object.keys(byFile).map(function(path) {
+    var fileMatches = byFile[path];
+    var fileName    = path.split('/').pop();
+    var rows = fileMatches.map(function(m) {
+      // Highlight the matched term inside the line
+      var highlighted = OS.escapeHtml(m.line).replace(
+        new RegExp('(' + OS.escapeHtml(term) + ')', 'gi'),
+        '<mark style="background:#fff176;padding:0 1px">$1</mark>'
+      );
+      return '<div class="resultRow" data-path="' + OS.escapeHtml(path) + '" ' +
+        'style="padding:3px 10px 3px 24px;font-size:11px;font-family:Consolas,monospace;' +
+        'border-bottom:1px solid #f5f5f5;cursor:pointer;color:#333;line-height:1.4" ' +
+        'title="Line ' + m.lineNum + '">' +
+        '<span style="color:#999;font-size:10px;margin-right:6px">' + m.lineNum + '</span>' +
+        highlighted + '</div>';
+    }).join('');
+
+    return '<div style="border-bottom:2px solid #ddd">' +
+      '<div class="fileHeader" data-path="' + OS.escapeHtml(path) + '" ' +
+        'style="padding:5px 10px;background:#f0f4ff;font-size:11px;font-weight:700;' +
+        'cursor:pointer;color:#003399;display:flex;justify-content:space-between">' +
+        '<span>📄 ' + OS.escapeHtml(fileName) + '</span>' +
+        '<span style="font-weight:400;color:#888">' + fileMatches.length + ' match' + (fileMatches.length !== 1 ? 'es' : '') + '</span>' +
+      '</div>' + rows + '</div>';
+  }).join('');
+
+  // Open file in Notepad when clicking any result row or header
+  searchResults.querySelectorAll('.resultRow, .fileHeader').forEach(function(el) {
+    el.addEventListener('mouseenter', function() { this.style.background = '#e8f0ff'; });
+    el.addEventListener('mouseleave', function() { this.style.background = ''; });
+    el.addEventListener('click', function() {
+      OS.openApp('notepad');
+      OS.showToast('Opened Notepad — find "' + query + '" with Shift+F', 3000);
+    });
+  });
+}
+
+searchBtn.addEventListener('click', function() {
+  searchStatus.textContent = 'Searching...';
+  searchResults.innerHTML  = '';
+  setTimeout(function() { searchAllFiles(searchInput.value); }, 10);
+});
+
+searchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') w.el.querySelector('#searchBtn').click();
+});
+
+searchInput.focus();
+```
+
+---
+
+### Mini Task Manager
+
+Demonstrates: `windows` · `flashWindow` · `shakeWindow` · `setWindowOpacity` · `resizeWindow` · `moveWindow` · `pinWindow` · `showToast`
+
+A live table of every open window. Refresh auto-runs every second. You can focus, flash, shake, close, or tweak opacity on any window directly from the table.
+
+```js
+var taskWin = OS.createWindow('Task Manager', 520, 320,
+  '<div style="display:flex;flex-direction:column;height:100%;background:#fff">' +
+    '<div style="padding:4px 8px;background:#ece9d8;border-bottom:1px solid #ccc;font-size:11px;font-weight:700;' +
+         'display:flex;justify-content:space-between;align-items:center">' +
+      '<span>Open Windows</span>' +
+      '<span id="tmCount" style="font-weight:400;color:#777"></span>' +
+    '</div>' +
+    '<div style="flex:1;overflow-y:auto">' +
+      '<table id="tmTable" style="width:100%;border-collapse:collapse;font-size:11px"></table>' +
+    '</div>' +
+    '<div style="padding:3px 8px;background:#ece9d8;border-top:1px solid #ccc;font-size:10px;color:#777">Refreshes every second</div>' +
+  '</div>'
+);
+taskWin.el.querySelector('.window-body').classList.add('window-body-flex');
+OS.pinWindow(taskWin);
+
+var tmTable = taskWin.el.querySelector('#tmTable');
+var tmCount = taskWin.el.querySelector('#tmCount');
+
+function renderTaskManager() {
+  if (!taskWin.el.isConnected) { clearInterval(tmIv); return; }
+
+  var visible = OS.windows.filter(function(w) { return w !== taskWin; });
+  tmCount.textContent = visible.length + ' window' + (visible.length !== 1 ? 's' : '');
+
+  tmTable.innerHTML =
+    '<tr style="background:#f0f0f0;font-weight:700">' +
+      '<td style="padding:4px 8px;border-bottom:1px solid #ddd">Title</td>' +
+      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;text-align:center">State</td>' +
+      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;text-align:center">Opacity</td>' +
+      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;text-align:center">Actions</td>' +
+    '</tr>' +
+    visible.map(function(win, i) {
+      var state = win.pinned ? '📌' : win.minimized ? '–' : win.maximized ? '⬜' : '◻';
+      return '<tr style="border-bottom:1px solid #f0f0f0" data-i="' + i + '">' +
+        '<td style="padding:4px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' +
+          OS.escapeHtml(win.title) + '">' + OS.escapeHtml(win.title) + '</td>' +
+        '<td style="padding:4px 6px;text-align:center;font-size:14px">' + state + '</td>' +
+        '<td style="padding:2px 6px;text-align:center">' +
+          '<input type="range" min="10" max="100" value="' + Math.round((parseFloat(win.el.style.opacity) || 1) * 100) + '" ' +
+          'style="width:60px" data-win="' + i + '" class="opSlider" />' +
+        '</td>' +
+        '<td style="padding:2px 4px;white-space:nowrap;text-align:center">' +
+          '<button class="tmFocus" data-win="' + i + '" style="padding:1px 5px;font-size:10px;cursor:pointer;margin:1px" title="Focus">▶</button>' +
+          '<button class="tmFlash" data-win="' + i + '" style="padding:1px 5px;font-size:10px;cursor:pointer;margin:1px" title="Flash">⚡</button>' +
+          '<button class="tmShake" data-win="' + i + '" style="padding:1px 5px;font-size:10px;cursor:pointer;margin:1px" title="Shake">💥</button>' +
+          '<button class="tmClose" data-win="' + i + '" style="padding:1px 5px;font-size:10px;cursor:pointer;margin:1px;color:#c44;font-weight:700" title="Close">✕</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+  tmTable.querySelectorAll('.opSlider').forEach(function(slider) {
+    slider.addEventListener('input', function() {
+      var win = visible[parseInt(this.getAttribute('data-win'))];
+      if (win) OS.setWindowOpacity(win, parseInt(this.value) / 100);
+    });
+  });
+  tmTable.querySelectorAll('.tmFocus').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var win = visible[parseInt(this.getAttribute('data-win'))];
+      if (win) win.el.querySelector('.window-header').click();
+    });
+  });
+  tmTable.querySelectorAll('.tmFlash').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var win = visible[parseInt(this.getAttribute('data-win'))];
+      if (win) OS.flashWindow(win);
+    });
+  });
+  tmTable.querySelectorAll('.tmShake').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var win = visible[parseInt(this.getAttribute('data-win'))];
+      if (win) OS.shakeWindow(win);
+    });
+  });
+  tmTable.querySelectorAll('.tmClose').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var win = visible[parseInt(this.getAttribute('data-win'))];
+      if (win) win.el.querySelector('.btn-close').click();
+    });
+  });
+}
+
+var tmIv = setInterval(renderTaskManager, 1000);
+renderTaskManager();
+
+taskWin.el.querySelector('.btn-close').addEventListener('click', function() {
+  clearInterval(tmIv);
+  OS.pinWindow(taskWin); // un-pin on close
+});
+```
+
+---
+
+### Draggable Desktop Sticky Note
+
+Demonstrates: `addDesktopWidget` · `writeFile` · `readFile` · `fileExists` · `showToast` · `setCursorStyle`
+
+Places a draggable, editable sticky note directly on the desktop. Content auto-saves to the filesystem every 3 seconds so it survives page reloads.
+
+```js
+var SAVE_PATH = 'C:/My Documents/sticky-note.txt';
+var COLORS    = ['#fff740', '#ff7eb3', '#7afcff', '#98fb98', '#ffb347'];
+var colorIdx  = 0;
+
+// Load saved content (or use a default)
+var savedContent = OS.fileExists(SAVE_PATH)
+  ? (OS.readFile(SAVE_PATH) || '')
+  : 'Double-click the header\nto change color.\n\nDrag me anywhere!';
+
+var note = OS.addDesktopWidget(
+  '<div id="stickyWrap" style="width:200px;box-shadow:3px 3px 10px rgba(0,0,0,.25);font-family:Tahoma,sans-serif">' +
+    '<div id="stickyHeader" style="background:#e6c800;padding:4px 8px;font-size:11px;font-weight:700;' +
+         'cursor:move;display:flex;justify-content:space-between;align-items:center;user-select:none">' +
+      '<span>📌 Sticky Note</span>' +
+      '<span id="stickyClose" style="cursor:pointer;opacity:.6;font-size:12px" title="Remove">✕</span>' +
+    '</div>' +
+    '<textarea id="stickyBody" style="width:100%;height:120px;border:none;outline:none;resize:none;' +
+      'padding:8px;font-family:Tahoma,sans-serif;font-size:12px;line-height:1.5;' +
+      'background:#fff740;box-sizing:border-box">' +
+      OS.escapeHtml(savedContent) +
+    '</textarea>' +
+    '<div id="stickyFooter" style="background:#e6c800;padding:2px 8px;font-size:9px;color:#666;text-align:right" id="stickyStatus">Saved</div>' +
+  '</div>',
+  window.innerWidth - 230, 50
+);
+
+var wrap   = note.querySelector('#stickyWrap');
+var header = note.querySelector('#stickyHeader');
+var body   = note.querySelector('#stickyBody');
+var footer = note.querySelector('#stickyFooter');
+
+// Color cycling on header double-click
+header.addEventListener('dblclick', function() {
+  colorIdx = (colorIdx + 1) % COLORS.length;
+  var color     = COLORS[colorIdx];
+  var darkColor = color.replace('ff', 'cc').replace('7a', '50');
+  body.style.background      = color;
+  header.style.background    = darkColor;
+  footer.style.background    = darkColor;
+  wrap.style.boxShadow       = '3px 3px 10px rgba(0,0,0,.3)';
+});
+
+// Dragging
+var dragging = false, dragOffsetX = 0, dragOffsetY = 0;
+header.addEventListener('mousedown', function(e) {
+  if (e.target === note.querySelector('#stickyClose')) return;
+  dragging    = true;
+  dragOffsetX = e.clientX - note.offsetLeft;
+  dragOffsetY = e.clientY - note.offsetTop;
+  OS.setCursorStyle('move');
+  e.preventDefault();
+});
+document.addEventListener('mousemove', function(e) {
+  if (!dragging) return;
+  note.style.left = Math.max(0, e.clientX - dragOffsetX) + 'px';
+  note.style.top  = Math.max(0, e.clientY - dragOffsetY) + 'px';
+});
+document.addEventListener('mouseup', function() {
+  if (dragging) { dragging = false; OS.setCursorStyle('default'); }
+});
+
+// Auto-save every 3 seconds
+var saveIv = setInterval(function() {
+  OS.writeFile(SAVE_PATH, body.value);
+  footer.textContent = 'Saved ' + new Date().toLocaleTimeString();
+}, 3000);
+
+// Remove button
+note.querySelector('#stickyClose').addEventListener('click', function() {
+  clearInterval(saveIv);
+  OS.writeFile(SAVE_PATH, body.value); // final save
+  note.remove();
+  OS.showToast('Sticky note removed (content saved)', 2000);
+});
+
+OS.showToast('Sticky note added — drag the header to move it', 2000);
+```
+
+---
+
+### Window Spotlight Mode
+
+Demonstrates: `setWindowOpacity` · `moveWindow` · `resizeWindow` · `onKeyCombo` · `windows` · `flashWindow` · `getScreenSize` · `showToast`
+
+Dims every window except the one currently "in the spotlight". Use **Alt+Right** / **Alt+Left** to cycle through windows. Great for presentations or focused work.
+
+```js
+var spotIndex   = 0;
+var spotActive  = false;
+var screen      = OS.getScreenSize();
+
+function getSpotWindows() {
+  return OS.windows.filter(function(w) { return !w.minimized; });
+}
+
+function applySpotlight(index) {
+  var visible = getSpotWindows();
+  if (visible.length === 0) { OS.showToast('No windows open', 1000); return; }
+  spotIndex = ((index % visible.length) + visible.length) % visible.length;
+
+  visible.forEach(function(win, i) {
+    if (i === spotIndex) {
+      // Bring spotlight window to center, full opacity, generous size
+      OS.setWindowOpacity(win, 1);
+      var newWidth  = Math.min(700, screen.width  - 40);
+      var newHeight = Math.min(500, screen.height - 60);
+      OS.resizeWindow(win, newWidth, newHeight);
+      OS.moveWindow(win, (screen.width - newWidth) / 2, (screen.height - newHeight) / 2);
+      win.el.querySelector('.window-header').click(); // focus it
+      OS.flashWindow(win);
+    } else {
+      // Dim everything else
+      OS.setWindowOpacity(win, 0.15);
+    }
+  });
+
+  var spotWin = visible[spotIndex];
+  OS.showToast(
+    '🔦 ' + spotWin.title + '  (' + (spotIndex + 1) + ' / ' + visible.length + ')',
+    1200
+  );
+}
+
+function exitSpotlight() {
+  OS.windows.forEach(function(win) { OS.setWindowOpacity(win, 1); });
+  spotActive = false;
+  OS.showToast('Spotlight off', 1000);
+}
+
+// Register shortcuts
+OS.onKeyCombo('Alt+ArrowRight', function() {
+  spotActive = true;
+  applySpotlight(spotIndex + 1);
+});
+
+OS.onKeyCombo('Alt+ArrowLeft', function() {
+  spotActive = true;
+  applySpotlight(spotIndex - 1);
+});
+
+OS.onKeyCombo('Alt+Escape', function() {
+  if (spotActive) exitSpotlight();
+});
+
+// Control panel
+var ctrl = OS.createWindow('Spotlight Mode', 280, 120,
+  '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+  'height:100%;gap:10px;background:#1a1a2e;color:#fff;font-size:11px;font-family:Tahoma">' +
+    '<div style="font-size:13px;font-weight:700">🔦 Spotlight Mode</div>' +
+    '<div style="color:#aaa;text-align:center;line-height:1.6">' +
+      'Alt+→ / Alt+← — cycle windows<br>Alt+Esc — exit spotlight' +
+    '</div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button id="btnStart" style="padding:4px 14px;cursor:pointer;font-family:inherit">Start</button>' +
+      '<button id="btnExit"  style="padding:4px 14px;cursor:pointer;font-family:inherit">Exit</button>' +
+    '</div>' +
+  '</div>'
+);
+OS.pinWindow(ctrl);
+
+ctrl.el.querySelector('#btnStart').addEventListener('click', function() {
+  spotActive = true;
+  applySpotlight(0);
+});
+
+ctrl.el.querySelector('#btnExit').addEventListener('click', exitSpotlight);
+
+ctrl.el.querySelector('.btn-close').addEventListener('click', function() {
+  exitSpotlight();
+});
+```
+
+---
+
+### OS Dashboard
+
+Demonstrates: `getActiveUser` · `getScreenSize` · `windows` · `fileSystem` · `formatFileSize` · `clipboardHistory` · `recycleBin()` · `saveFilesystem` · `showToast`
+
+A live system overview that scans the whole filesystem and displays real stats — total files, folders, disk usage, open windows, clipboard, Recycle Bin. Refreshes every 2 seconds.
+
+```js
+var dashWin = OS.createWindow('OS Dashboard', 420, 360,
+  '<div style="height:100%;overflow-y:auto;background:#1a1a2e;color:#e0e0e0;' +
+       'font-family:Consolas,monospace;font-size:12px;padding:12px;line-height:1.8" id="dashBody">' +
+    'Loading...' +
+  '</div>'
+);
+
+var dashBody = dashWin.el.querySelector('#dashBody');
+
+function scanFS() {
+  var fileCount   = 0;
+  var folderCount = 0;
+  var totalBytes  = 0;
+  var fileTypes   = {};
+
+  function scan(node) {
+    if (!node || !node.children) return;
+    Object.keys(node.children).forEach(function(name) {
+      var child = node.children[name];
+      if (child.type === 'file') {
+        fileCount++;
+        totalBytes += child.size || 0;
+        var ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'other';
+        fileTypes[ext] = (fileTypes[ext] || 0) + 1;
+      }
+      if (child.type === 'folder') {
+        folderCount++;
+        scan(child);
+      }
+    });
+  }
+  scan(OS.fileSystem['C:']);
+  return { fileCount: fileCount, folderCount: folderCount, totalBytes: totalBytes, fileTypes: fileTypes };
+}
+
+function bar(value, max, width) {
+  width = width || 20;
+  var filled = Math.round((value / Math.max(max, 1)) * width);
+  return '[' + '█'.repeat(filled) + '░'.repeat(width - filled) + ']';
+}
+
+function renderDashboard() {
+  if (!dashWin.el.isConnected) { clearInterval(dashIv); return; }
+
+  var stats      = scanFS();
+  var screen     = OS.getScreenSize();
+  var bin        = OS.recycleBin();
+  var binCount   = Object.keys(bin.children).length;
+  var binBytes   = Object.keys(bin.children).reduce(function(s, n) { return s + (bin.children[n].size || 0); }, 0);
+  var visible    = OS.windows.filter(function(w) { return !w.minimized && w !== dashWin; });
+  var minimized  = OS.windows.filter(function(w) { return w.minimized; });
+  var topTypes   = Object.keys(stats.fileTypes).sort(function(a, b) {
+    return stats.fileTypes[b] - stats.fileTypes[a];
+  }).slice(0, 5);
+
+  var lines = [
+    '<span style="color:#7afcff;font-weight:700">╔══ Mini OS Dashboard ══╗</span>',
+    '',
+    '<span style="color:#98fb98">▶ SYSTEM</span>',
+    '  User        : ' + (OS.getActiveUser() || 'unknown'),
+    '  Screen      : ' + screen.width + ' × ' + screen.height + ' px',
+    '  Time        : ' + new Date().toLocaleTimeString(),
+    '',
+    '<span style="color:#98fb98">▶ WINDOWS</span>',
+    '  Open        : ' + OS.windows.length + '  ' + bar(OS.windows.length, 10),
+    '  Visible     : ' + visible.length,
+    '  Minimized   : ' + minimized.length,
+    visible.length > 0
+      ? '  Titles      : ' + visible.map(function(w) { return w.title; }).join(', ')
+      : '',
+    '',
+    '<span style="color:#98fb98">▶ FILESYSTEM</span>',
+    '  Files       : ' + stats.fileCount + '  ' + bar(stats.fileCount, 60),
+    '  Folders     : ' + stats.folderCount,
+    '  Total size  : ' + OS.formatFileSize(stats.totalBytes),
+    '  Top types   : ' + topTypes.map(function(t) {
+      return t + '×' + stats.fileTypes[t];
+    }).join('  '),
+    '',
+    '<span style="color:#98fb98">▶ RECYCLE BIN</span>',
+    '  Items       : ' + binCount + (binCount > 0 ? '  (' + OS.formatFileSize(binBytes) + ')' : ' (empty)'),
+    '',
+    '<span style="color:#98fb98">▶ CLIPBOARD</span>',
+    '  History     : ' + OS.clipboardHistory.length + ' item' + (OS.clipboardHistory.length !== 1 ? 's' : ''),
+    OS.clipboardHistory.length > 0
+      ? '  Last        : [' + OS.clipboardHistory[0].mode + '] ' + OS.clipboardHistory[0].name
+      : '',
+    '',
+    '<span style="color:#555">─────────────────────────</span>',
+    '<span style="color:#555">Refreshes every 2s</span>',
+    '<span style="color:#555">Last update: ' + new Date().toLocaleTimeString() + '</span>'
+  ];
+
+  dashBody.innerHTML = lines.filter(function(l) { return l !== ''; }).join('<br>');
+}
+
+var dashIv = setInterval(renderDashboard, 2000);
+renderDashboard();
+
+dashWin.el.querySelector('.btn-close').addEventListener('click', function() {
+  clearInterval(dashIv);
+});
