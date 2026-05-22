@@ -1,388 +1,306 @@
-(function () {
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Tahoma,Geneva,sans-serif;overflow:hidden;height:100vh;background:#3a6ea5;user-select:none}
 
-var OS = window.MicroOS;
-var PROFILES_KEY = 'minios-profiles';
-var ACTIVE_USER_KEY = 'minios-active-user';
-var BOOT_KEY = 'minios-boot-config';
+/* ── Boot / Welcome Screen ── */
+#boot-screen{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s ease}
+#boot-screen.fade-out{opacity:0;pointer-events:none}
+.boot-logo{margin-bottom:20px}
+.boot-logo svg{width:200px;height:60px}
+.boot-text{color:#fff;font-size:14px;margin-bottom:30px;letter-spacing:1px}
+.boot-progress-track{width:200px;height:18px;border:1px solid #555;border-radius:2px;overflow:hidden;background:#000;padding:2px}
+.boot-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#0052cc,#3388ff,#0052cc);border-radius:1px;transition:width .3s linear;position:relative}
+.boot-progress-bar::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.15) 0px,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px);animation:bootShine 1s linear infinite}
+@keyframes bootShine{from{background-position:0 0}to{background-position:16px 0}}
 
-function deepClone(object) {
-  return JSON.parse(JSON.stringify(object));
+
+/* ── Desktop ── */
+#desktop{position:absolute;top:0;left:0;right:0;bottom:30px;background:linear-gradient(180deg,#245edb 0%,#3a6ea5 30%,#3a6ea5 100%);overflow:hidden}
+#desktop-icons{display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:10px;height:100%}
+.desktop-icon{display:flex;flex-direction:column;align-items:center;width:76px;padding:6px 4px;border-radius:3px;cursor:default;gap:2px;transition:background .15s}
+.desktop-icon:hover{background:rgba(255,255,255,.15)}
+.desktop-icon.selected{background:rgba(50,100,200,.5)}
+.desktop-icon .icon-img{width:32px;height:32px}
+.desktop-icon span{font-size:11px;color:#fff;text-align:center;text-shadow:1px 1px 2px rgba(0,0,0,.8);line-height:1.2}
+
+/* ── Context Menu ── */
+#context-menu{position:fixed;background:#fff;border:2px solid #888;box-shadow:2px 2px 6px rgba(0,0,0,.3);z-index:2000;min-width:160px;padding:2px 0;font-size:11px;display:none}
+#context-menu.visible{display:block}
+.ctx-item{padding:5px 12px 5px 28px;cursor:default;color:#000;position:relative;white-space:nowrap}
+.ctx-item:hover{background:#316ac5;color:#fff}
+.ctx-item.disabled{color:#888}
+.ctx-item.disabled:hover{background:transparent;color:#888}
+.ctx-separator{height:1px;background:#ccc;margin:3px 4px}
+.ctx-icon{position:absolute;left:6px;top:3px;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+
+/* ── Notification Toasts ── */
+#notification-area{position:fixed;bottom:40px;right:10px;z-index:3000;display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none}
+.notification-toast{background:linear-gradient(180deg,#fffde8 0%,#fff8c8 100%);border:1px solid #d4c860;border-radius:4px;padding:10px 14px;box-shadow:2px 2px 8px rgba(0,0,0,.2);font-size:11px;color:#333;pointer-events:auto;animation:toastIn .3s ease;max-width:260px;display:flex;align-items:flex-start;gap:8px}
+.notification-toast.fade-out{animation:toastOut .3s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(30px)}}
+.toast-icon{flex-shrink:0;width:20px;height:20px}
+.toast-content{flex:1}
+.toast-title{font-weight:700;margin-bottom:2px;color:#222}
+.toast-msg{color:#555;line-height:1.3}
+
+/* ── Taskbar (XP silver/blue) ── */
+#taskbar{position:fixed;bottom:0;left:0;right:0;height:30px;background:linear-gradient(180deg,#1f53d1 0%,#3165d4 4%,#2e5bc6 8%,#1845b0 92%,#102e8a 100%);display:flex;align-items:stretch;z-index:1000;border-top:1px solid #5b8ee5}
+
+#start-btn{background:linear-gradient(180deg,#3c8f3c 0%,#40a140 30%,#2d8e2d 70%,#1e7a1e 100%);border:none;color:#fff;font-size:11px;font-weight:700;font-family:inherit;padding:0 12px;cursor:pointer;border-right:2px solid #0c5a0c;border-radius:0 8px 8px 0;text-shadow:1px 1px 1px rgba(0,0,0,.4);letter-spacing:.3px;display:flex;align-items:center;gap:3px;transition:filter .15s}
+#start-btn:hover{background:linear-gradient(180deg,#4caf4c 0%,#50b850 30%,#3a9f3a 70%,#2a8a2a 100%)}
+#start-btn:active{background:linear-gradient(180deg,#2a7a2a 0%,#348a34 30%,#246e24 70%,#1a5e1a 100%)}
+
+#taskbar-apps{flex:1;display:flex;gap:2px;padding:3px 4px;overflow-x:auto;align-items:stretch}
+.taskbar-app{padding:0 10px;font-size:11px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;background:linear-gradient(180deg,#3e72cc 0%,#2a5eb5 100%);border:1px solid rgba(255,255,255,.15);border-radius:2px;text-shadow:1px 1px 1px rgba(0,0,0,.3);max-width:160px;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
+.taskbar-app:hover{background:linear-gradient(180deg,#5588dd 0%,#3a6cc8 100%)}
+.taskbar-app.active{background:linear-gradient(180deg,#e8dfd4 0%,#d6c8b8 100%);color:#000;border-color:#999;text-shadow:none;font-weight:700}
+.taskbar-app.minimized{opacity:.7}
+
+#tray{display:flex;align-items:center;gap:6px;padding:0 8px;background:linear-gradient(180deg,#1a8cd8 0%,#1264a8 100%);border-left:2px solid rgba(255,255,255,.15)}
+.tray-icon{cursor:pointer;opacity:.85;transition:opacity .15s}
+.tray-icon:hover{opacity:1}
+.tray-icon svg{display:block}
+#taskbar-clock{font-size:11px;color:#fff;text-shadow:1px 1px 1px rgba(0,0,0,.3)}
+
+/* ── Start Menu (XP style, improved with icons) ── */
+#start-menu{position:fixed;bottom:30px;left:0;background:#fff;border:2px solid #2a5caa;border-radius:8px 8px 0 0;width:380px;box-shadow:3px 3px 12px rgba(0,0,0,.4);z-index:1001;overflow:hidden;transform-origin:bottom left}
+#start-menu.hidden{display:none!important}
+#start-menu.animate-in{animation:startMenuIn .2s ease}
+@keyframes startMenuIn{from{opacity:0;transform:scaleY(.9)}to{opacity:1;transform:scaleY(1)}}
+.start-banner{background:linear-gradient(180deg,#2458b5 0%,#1941a0 100%);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.start-avatar{width:36px;height:36px;border-radius:4px;border:2px solid rgba(255,255,255,.5);background:linear-gradient(135deg,#4a8acc,#6ab0ff);display:flex;align-items:center;justify-content:center}
+.start-avatar svg{width:24px;height:24px}
+.start-user-name{color:#fff;font-size:13px;font-weight:700;text-shadow:1px 1px 2px rgba(0,0,0,.4)}
+.start-columns{display:flex;min-height:220px}
+.start-left{flex:1;background:#fff;padding:6px 0;border-right:1px solid #d6d2c2}
+.start-right{width:140px;background:#d6dff0;padding:6px 0}
+.start-item{padding:6px 14px;font-size:11px;color:#000;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+.start-item:hover{background:#2f71cd;color:#fff}
+.start-item svg,.start-item .si-icon{width:20px;height:20px;flex-shrink:0}
+.start-right .start-item{font-weight:700;font-size:11px;color:#1a3a6a}
+.start-right .start-item:hover{background:#3a7ade;color:#fff}
+.start-divider{height:1px;background:#b8c8da;margin:4px 8px}
+.start-left-divider{height:1px;background:#d8d4cc;margin:6px 8px}
+.start-section-label{font-size:10px;color:#888;padding:2px 14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.start-footer{background:linear-gradient(180deg,#2a6ad4 0%,#1a4aa0 100%);padding:6px 12px;display:flex;justify-content:flex-end;gap:8px}
+.start-footer-btn{font-size:11px;color:#fff;cursor:pointer;padding:3px 12px;background:linear-gradient(180deg,#3a8a3a,#2a6a2a);border-radius:3px;border:1px solid #1a5a1a;text-shadow:1px 1px 1px rgba(0,0,0,.3);transition:filter .15s}
+.start-footer-btn:hover{filter:brightness(1.1)}
+.start-footer-btn.shutdown-btn{background:linear-gradient(180deg,#cc4444,#aa2222);border-color:#881111}
+.hidden{display:none!important}
+
+/* ── Window Animations ── */
+@keyframes windowOpen{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes windowClose{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.85)}}
+@keyframes windowMinimize{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(.5) translateY(100px)}}
+@keyframes windowRestore{from{opacity:0;transform:scale(.5) translateY(100px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* ── Windows (XP Luna blue) ── */
+.window{position:absolute;min-width:260px;min-height:150px;border:1px solid #0055ea;border-radius:8px 8px 0 0;box-shadow:2px 2px 10px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;background:#ece9d8;animation:windowOpen .2s ease}
+.window.focused{box-shadow:3px 3px 15px rgba(0,0,0,.45)}
+.window.minimized{display:none}
+.window.closing{animation:windowClose .15s ease forwards;pointer-events:none}
+.window.minimizing{animation:windowMinimize .2s ease forwards;pointer-events:none}
+.window.restoring{animation:windowRestore .2s ease}
+.window.maximized{border-radius:0;top:0!important;left:0!important;width:100%!important;height:calc(100vh - 30px)!important}
+
+.window-header{display:flex;align-items:center;height:26px;padding:0 4px 0 6px;background:linear-gradient(180deg,#0a246a 0%,#3a6ea5 6%,#4a8ac7 42%,#3a6ea5 96%,#1a4a8a 100%);cursor:default;flex-shrink:0}
+.window.focused .window-header{background:linear-gradient(180deg,#0a246a 0%,#0f5dca 6%,#3a89e5 42%,#1a6ede 96%,#0845a0 100%)}
+.window-title{flex:1;font-size:11px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:1px 1px 2px rgba(0,0,0,.5)}
+.window-btns{display:flex;gap:2px}
+.window-btn{width:21px;height:21px;border:1px solid rgba(255,255,255,.4);border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#3a8aee 0%,#2266cc 50%,#1a5ab8 100%);position:relative;transition:filter .1s}
+.window.focused .window-btn{background:linear-gradient(180deg,#468ccf 0%,#2a6ec8 50%,#1958a8 100%)}
+.window-btn:hover{background:linear-gradient(180deg,#5aa0f0 0%,#3a80dd 50%,#2a6acc 100%)}
+.btn-close{background:linear-gradient(180deg,#c46055 0%,#b5493e 50%,#943029 100%)!important}
+.btn-close:hover{background:linear-gradient(180deg,#e07065 0%,#d05a50 50%,#b04038 100%)!important}
+.btn-icon{width:9px;height:9px;pointer-events:none}
+
+.window-body{flex:1;overflow:auto;background:#fff;border:2px inset #c8c4b8}
+.window-body.window-body-flex{display:flex;flex-direction:column;overflow:hidden}
+.window-resize{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize}
+
+/* ── Notepad ── */
+.notepad-menu{display:flex;gap:0;padding:1px 2px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px}
+.notepad-menu span{padding:2px 8px;cursor:pointer;color:#000}
+.notepad-menu span:hover{background:#316ac5;color:#fff}
+.notepad-body{width:100%;height:100%;background:#fff;color:#000;border:none;outline:none;resize:none;padding:4px 6px;font-family:'Lucida Console',Consolas,monospace;font-size:12px;line-height:1.4}
+
+/* ── Calculator ── */
+.calc-wrap{display:flex;flex-direction:column;height:100%;background:#ece9d8;padding:6px}
+.calc-display{background:#e0e8d0;color:#000;text-align:right;padding:4px 8px;font-size:18px;font-family:'Lucida Console',monospace;border:2px inset #c8c4b8;margin-bottom:6px;min-height:28px;overflow:hidden}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;flex:1}
+.calc-btn{background:linear-gradient(180deg,#f0ede4 0%,#d8d4c8 100%);border:1px solid #999;border-radius:2px;color:#000;font-size:12px;padding:4px;cursor:pointer;font-family:inherit;transition:background .1s}
+.calc-btn:hover{background:linear-gradient(180deg,#fff 0%,#e8e4da 100%)}
+.calc-btn:active{background:#c8c4b8}
+.calc-btn.op{color:#0045aa;font-weight:700}
+.calc-btn.eq{background:linear-gradient(180deg,#e0ddd4 0%,#c0bcb0 100%);font-weight:700;color:#333}
+
+/* ── Files ── */
+.files-toolbar{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;flex-shrink:0}
+.files-back-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.files-back-btn:hover{background:#e8e4da}
+.files-path{background:#fff;border:2px inset #c8c4b8;padding:2px 6px;color:#000;flex:1;font-size:11px}
+.files-header{display:flex;align-items:center;padding:2px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;font-weight:700;color:#000;flex-shrink:0}
+.files-header span{padding:2px 4px;cursor:default}
+.files-col-name{flex:2;min-width:0}
+.files-col-size{width:70px;text-align:right;flex-shrink:0;padding-left:8px}
+.files-col-type{width:80px;flex-shrink:0;padding-left:8px}
+.files-col-date{width:80px;flex-shrink:0;padding-left:8px}
+.files-list{flex:1;overflow-y:auto;padding:2px 0}
+.file-item{display:flex;align-items:center;padding:2px 6px;cursor:default;font-size:11px;color:#000;border:1px solid transparent;transition:background .1s,color .1s}
+.file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
+.file-item.selected{background:#316ac5;color:#fff;border-color:#1a4a8a}
+.file-item-icon{width:16px;height:16px;flex-shrink:0;margin-right:4px}
+.file-item-name{flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item-size{width:70px;text-align:right;flex-shrink:0;color:inherit;padding-left:8px}
+.file-item-type{width:80px;flex-shrink:0;color:inherit;padding-left:8px}
+.file-item-date{width:80px;flex-shrink:0;color:inherit;padding-left:8px}
+.files-statusbar{display:flex;align-items:center;padding:2px 8px;background:#ece9d8;border-top:1px solid #aca899;font-size:10px;color:#555;flex-shrink:0}
+.file-item:hover{background:#316ac5;color:#fff;border-color:#1a4a8a}
+
+/* ── Terminal ── */
+.terminal-body{background:#0c0c0c;color:#c0c0c0;font-family:'Lucida Console',Consolas,monospace;font-size:12px;padding:4px 6px;height:100%;overflow-y:auto;line-height:1.4}
+.terminal-line{white-space:pre-wrap;word-break:break-all}
+.terminal-line.error{color:#ff6b6b}
+.terminal-line.success{color:#69db7c}
+.terminal-line.info{color:#74c0fc}
+.terminal-input-line{display:flex}
+.terminal-prompt{color:#c0c0c0;white-space:pre}
+.terminal-input{background:none;border:none;outline:none;color:#c0c0c0;font-family:'Lucida Console',Consolas,monospace;font-size:12px;flex:1;caret-color:#c0c0c0}
+
+/* ── Browser ── */
+.browser-bar{display:flex;gap:4px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;align-items:center;flex-shrink:0}
+.browser-label{font-size:11px;color:#000}
+.browser-url{flex:1;background:#fff;border:2px inset #c8c4b8;padding:2px 6px;color:#000;font-size:11px;outline:none;font-family:inherit}
+.browser-go{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 10px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.browser-go:hover{background:#e8e4da}
+.browser-frame{flex:1;border:none;background:#fff;width:100%;min-height:0}
+
+/* ── Paint ── */
+.paint-tools{display:flex;align-items:center;gap:4px;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;flex-wrap:wrap}
+.paint-color{width:18px;height:18px;border:1px solid #888;cursor:pointer;transition:transform .1s}
+.paint-color:hover{transform:scale(1.15)}
+.paint-color.active{border:2px solid #000;outline:1px solid #fff}
+.paint-size{width:50px}
+.paint-tool-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 6px;cursor:pointer;font-size:10px;font-family:inherit;color:#000;transition:background .1s}
+.paint-tool-btn:hover{background:#e8e4da}
+.paint-tool-btn.active{background:#b8c8e0;border-color:#4a6a8a}
+.paint-clear{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:1px 8px;cursor:pointer;font-size:10px;font-family:inherit;margin-left:auto;color:#000;transition:background .1s}
+.paint-clear:hover{background:#e8e4da}
+.paint-canvas{background:#fff;cursor:crosshair;display:block}
+
+/* ── Clock ── */
+.clock-face{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;background:#ece9d8}
+.clock-analog{position:relative;width:120px;height:120px;border-radius:50%;background:#fff;border:3px solid #666;box-shadow:inset 0 0 6px rgba(0,0,0,.15)}
+.clock-hand{position:absolute;bottom:50%;left:50%;transform-origin:50% 100%;border-radius:2px}
+.clock-hour{width:4px;height:30px;background:#333;margin-left:-2px}
+.clock-minute{width:3px;height:42px;background:#555;margin-left:-1.5px}
+.clock-second{width:1px;height:48px;background:#cc0000;margin-left:-.5px}
+.clock-center{position:absolute;top:50%;left:50%;width:8px;height:8px;background:#333;border-radius:50%;transform:translate(-50%,-50%)}
+.clock-time{font-size:36px;font-weight:300;color:#003399;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.clock-date{font-size:12px;color:#555}
+
+/* ── Minesweeper ── */
+.mine-wrap{display:flex;flex-direction:column;height:100%;background:#c0c0c0;padding:6px}
+.mine-header{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;margin-bottom:4px;border:2px inset #ddd;background:#c0c0c0}
+.mine-counter{font-family:'Lucida Console',monospace;font-size:18px;color:#cc0000;background:#000;padding:2px 6px;min-width:44px;text-align:center;border:1px inset #666}
+.mine-reset{width:28px;height:28px;border:2px outset #ddd;background:#c0c0c0;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1}
+.mine-reset:active{border-style:inset}
+.mine-grid{display:inline-grid;border:3px inset #888;background:#c0c0c0;align-self:center}
+.mine-cell{width:20px;height:20px;border:2px outset #fff;background:#c0c0c0;cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Lucida Console',monospace}
+.mine-cell.revealed{border:1px solid #888;background:#d0d0d0;cursor:default}
+.mine-cell.mine{background:#ff4444}
+.mine-cell.flagged svg{display:block;margin:auto}
+.mine-cell[data-n="1"]{color:#0000ff}
+.mine-cell[data-n="2"]{color:#008000}
+.mine-cell[data-n="3"]{color:#ff0000}
+.mine-cell[data-n="4"]{color:#000080}
+.mine-cell[data-n="5"]{color:#800000}
+.mine-cell[data-n="6"]{color:#008080}
+.mine-cell[data-n="7"]{color:#000}
+.mine-cell[data-n="8"]{color:#808080}
+
+/* ── Settings / Control Panel ── */
+.settings-body{padding:10px;background:#fff;font-size:11px}
+.settings-section{margin-bottom:14px}
+.settings-label{font-size:11px;color:#003399;font-weight:700;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #ccc}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+.settings-row span{font-size:11px;color:#000}
+.wallpaper-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.wallpaper-opt{height:40px;border-radius:2px;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
+.wallpaper-opt:hover{border-color:#4a8acc}
+.wallpaper-opt.active{border-color:#003399}
+
+/* ── About ── */
+.about-body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;text-align:center;padding:20px;background:#ece9d8}
+.about-body h2{color:#003399;font-size:14px}
+.about-body p{color:#333;font-size:11px;line-height:1.5}
+.about-version{color:#888;font-size:10px;margin-top:4px}
+
+/* ── Scrollbar (XP style) ── */
+::-webkit-scrollbar{width:16px}
+::-webkit-scrollbar-track{background:#e8e4d8}
+::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#c8cad0 0%,#a8aab0 100%);border:1px solid #888;border-radius:0}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(90deg,#d0d2d8 0%,#b0b2b8 100%)}
+::-webkit-scrollbar-button{background:#d8d4c8;border:1px solid #999;height:16px}
+
+/* ── Upload Button ── */
+.files-upload-btn{background:linear-gradient(180deg,#f0ede4,#d8d4c8);border:1px solid #999;border-radius:2px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;color:#000;transition:background .1s}
+.files-upload-btn:hover{background:#e8e4da}
+
+/* ── OS Dialog Windows ── */
+.dialog-overlay{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center}
+.dialog-box{background:#ece9d8;border:2px solid #0055ea;border-radius:8px 8px 0 0;box-shadow:4px 4px 16px rgba(0,0,0,.5);overflow:hidden;min-width:260px}
+.dialog-header{display:flex;align-items:center;height:26px;padding:0 4px 0 8px;background:linear-gradient(180deg,#0a246a 0%,#0f5dca 6%,#3a89e5 42%,#1a6ede 96%,#0845a0 100%)}
+.dialog-title{flex:1;font-size:11px;color:#fff;font-weight:700;text-shadow:1px 1px 2px rgba(0,0,0,.5)}
+.dialog-close-btn{width:21px;height:21px;border:1px solid rgba(255,255,255,.4);border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#c46055 0%,#b5493e 50%,#943029 100%)}
+.dialog-close-btn:hover{background:linear-gradient(180deg,#e07065 0%,#d05a50 50%,#b04038 100%)}
+.dialog-close-btn .btn-icon{width:9px;height:9px;pointer-events:none}
+.dialog-body{padding:16px 20px 14px}
+.dialog-message{font-size:11px;color:#000;margin-bottom:10px;line-height:1.4}
+.dialog-input{width:100%;padding:3px 6px;font-size:11px;font-family:inherit;border:2px inset #c8c4b8;background:#fff;color:#000;outline:none;margin-bottom:12px}
+.dialog-buttons{display:flex;justify-content:flex-end;gap:6px}
+.dialog-btn{padding:4px 20px;font-size:11px;font-family:inherit;border:1px solid #999;border-radius:2px;cursor:pointer;color:#000;background:linear-gradient(180deg,#f0ede4 0%,#d8d4c8 100%)}
+.dialog-btn:hover{background:linear-gradient(180deg,#fff 0%,#e8e4da 100%)}
+.dialog-btn:active{background:#c8c4b8}
+.dialog-btn-ok{font-weight:700}
+
+/* ── Login Screen ── */
+#login-screen{position:fixed;inset:0;z-index:10000;background:linear-gradient(180deg,#0049a6 0%,#0066cc 30%,#3399ff 100%);display:flex;align-items:center;justify-content:center}
+.login-container{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 40px;background:rgba(255,255,255,.1);border-radius:12px;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(4px)}
+.login-logo svg{width:120px;height:96px}
+.login-title{color:#fff;font-size:22px;font-weight:700;letter-spacing:1px}
+.login-subtitle{color:rgba(255,255,255,.7);font-size:11px;margin-bottom:4px}
+.login-profiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:400px}
+.login-profile-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 16px;background:rgba(255,255,255,.15);border:2px solid transparent;border-radius:8px;cursor:pointer;color:#fff;min-width:80px;transition:background .15s,border-color .15s}
+.login-profile-btn:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4)}
+.login-profile-btn svg{width:36px;height:36px}
+.login-profile-btn span{font-size:11px;font-weight:700}
+.login-profile-delete{position:absolute;top:-4px;right:-4px;width:14px;height:14px;background:#c44;border:none;border-radius:50%;color:#fff;font-size:8px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.login-profile-btn{position:relative}
+.login-profile-btn:hover .login-profile-delete{display:flex}
+.login-new{display:flex;gap:6px;margin-top:6px}
+.login-new-input{padding:4px 8px;font-size:11px;border:2px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(255,255,255,.15);color:#fff;outline:none;font-family:inherit;width:150px}
+.login-new-input::placeholder{color:rgba(255,255,255,.5)}
+.login-new-input:focus{border-color:rgba(255,255,255,.6)}
+.login-new-btn{padding:4px 14px;font-size:11px;border:none;border-radius:4px;background:#fff;color:#0066cc;font-weight:700;cursor:pointer;font-family:inherit}
+.login-new-btn:hover{background:#e8f0ff}
+
+/* ── Window Behavior API ── */
+@keyframes windowShake{
+  0%,100%{transform:translateX(0)}
+  15%{transform:translateX(-8px)}
+  30%{transform:translateX(8px)}
+  45%{transform:translateX(-6px)}
+  60%{transform:translateX(6px)}
+  75%{transform:translateX(-3px)}
+  90%{transform:translateX(3px)}
 }
+.window-shaking{animation:windowShake .5s ease}
 
-var defaultFileSystem = deepClone(OS.fileSystem);
-var activeUserName = null;
-
-function getUserFSKey(userName) { return 'minios-fs-' + userName; }
-function getUserSessionKey(userName) { return 'minios-session-' + userName; }
-
-// ── Profile management ──
-
-function getProfiles() {
-  try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]'); }
-  catch (error) { return []; }
+@keyframes windowFlash{
+  0%,100%{filter:none}
+  50%{filter:brightness(1.9) hue-rotate(20deg)}
 }
+.window-flashing .window-header{animation:windowFlash .35s ease 4}
 
-function saveProfiles(profileList) {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profileList));
-}
-
-function createProfile(userName) {
-  var profiles = getProfiles();
-  if (profiles.indexOf(userName) >= 0) return false;
-  profiles.push(userName);
-  saveProfiles(profiles);
-  return true;
-}
-
-function deleteProfile(userName) {
-  var profiles = getProfiles();
-  profiles = profiles.filter(function (profileName) { return profileName !== userName; });
-  saveProfiles(profiles);
-  localStorage.removeItem(getUserFSKey(userName));
-  localStorage.removeItem(getUserSessionKey(userName));
-}
-
-// ── Filesystem persistence (per-user) ──
-
-function loadFilesystem() {
-  if (!activeUserName) return false;
-  try {
-    var saved = localStorage.getItem(getUserFSKey(activeUserName));
-    if (saved) {
-      var parsed = JSON.parse(saved);
-      if (parsed['C:']) { OS.fileSystem['C:'] = parsed['C:']; return true; }
-    }
-  } catch (error) { console.error('Failed to load filesystem:', error); }
-  return false;
-}
-
-function saveFilesystem() {
-  if (!activeUserName) return false;
-  try {
-    localStorage.setItem(getUserFSKey(activeUserName), JSON.stringify(OS.fileSystem));
-    return true;
-  } catch (error) { console.error('Failed to save filesystem:', error); return false; }
-}
-
-function resetFilesystem() {
-  if (activeUserName) {
-    // Remove storage keys one at a time to avoid lag
-    try { localStorage.removeItem(getUserFSKey(activeUserName)); } catch (e) {}
-    try { localStorage.removeItem(getUserSessionKey(activeUserName)); } catch (e) {}
-    // Remove user from profiles list
-    var profiles = getProfiles();
-    profiles = profiles.filter(function (name) { return name !== activeUserName; });
-    saveProfiles(profiles);
-    try { localStorage.removeItem(ACTIVE_USER_KEY); } catch (e) {}
-  }
-}
-
-// ── Session state (per-user) ──
-
-function saveSession() {
-  if (!activeUserName) return false;
-  try {
-    var windowStates = [];
-    OS.windows.forEach(function (windowObj) {
-      var element = windowObj.el;
-      // Skip windows created by custom code (no appName) — they can't be restored
-      if (!windowObj.appName) return;
-      windowStates.push({
-        appName:   windowObj.appName,
-        title:     windowObj.title,
-        minimized: windowObj.minimized,
-        maximized: windowObj.maximized,
-        left:      element.style.left,
-        top:       element.style.top,
-        width:     element.style.width,
-        height:    element.style.height
-      });
-    });
-    // Save the full wallpaper CSS so custom wallpapers survive reload too
-    var desktopEl = document.getElementById('desktop');
-    var sessionData = {
-      wallpaper:    OS.getCurrentWallpaper(),
-      wallpaperCSS: desktopEl ? desktopEl.style.background : null,
-      windows:      windowStates
-    };
-    localStorage.setItem(getUserSessionKey(activeUserName), JSON.stringify(sessionData));
-    return true;
-  } catch (error) { console.error('Failed to save session:', error); return false; }
-}
-
-function loadSession() {
-  if (!activeUserName) return false;
-  try {
-    var saved = localStorage.getItem(getUserSessionKey(activeUserName));
-    if (!saved) return false;
-    var sessionData = JSON.parse(saved);
-    var desktopElLoad = document.getElementById('desktop');
-    if (sessionData.wallpaperCSS) {
-      // Restore exact CSS — handles both preset gradients and custom uploaded wallpapers
-      if (desktopElLoad) desktopElLoad.style.background = sessionData.wallpaperCSS;
-    } else if (typeof sessionData.wallpaper === 'number') {
-      OS.setCurrentWallpaper(sessionData.wallpaper);
-      if (desktopElLoad) desktopElLoad.style.background = OS.wallpapers[sessionData.wallpaper];
-    }
-    if (sessionData.windows && sessionData.windows.length > 0) {
-      window._pendingWindowRestore = sessionData.windows;
-    }
-    return true;
-  } catch (error) { console.error('Failed to load session:', error); return false; }
-}
-
-// Map window titles to app names for restore
-var titleToAppName = {
-  'Untitled - Notepad': 'notepad',
-  'Calculator': 'calculator',
-  'My Documents': 'files',
-  'Command Prompt': 'terminal',
-  'Internet': 'browser',
-  'Paint': 'paint',
-  'Clock': 'clock',
-  'Minesweeper': 'minesweeper',
-  'Control Panel': 'settings',
-  'About Mini OS': 'about',
-  'Code Editor': 'codeeditor',
-  'Find Files': 'findfiles',
-  'Clipboard Manager': 'clipboardmanager'
-};
-
-function restorePendingWindows() {
-  var pendingWindows = window._pendingWindowRestore;
-  if (!pendingWindows || pendingWindows.length === 0) return;
-  delete window._pendingWindowRestore;
-
-  pendingWindows.forEach(function (windowState) {
-    // Prefer the saved appName; fall back to the legacy title→app lookup for old sessions
-    var appName = windowState.appName || titleToAppName[windowState.title];
-    if (!appName) return;
-
-    // Count windows before opening so we can find the exact new one(s)
-    var countBefore = OS.windows.length;
-    OS.openApp(appName);
-
-    // Grab only the windows that were just created by this openApp call
-    var newWindows = OS.windows.slice(countBefore);
-    if (newWindows.length === 0) return;
-
-    // Apply saved geometry to the last window the app created
-    var win = newWindows[newWindows.length - 1];
-    var el  = win.el;
-
-    if (windowState.maximized) {
-      win.maximized = true;
-      el.classList.add('maximized');
-      return; // maximized windows don't need explicit left/top/width/height
-    }
-
-    if (windowState.left)   el.style.left   = windowState.left;
-    if (windowState.top)    el.style.top    = windowState.top;
-    if (windowState.width)  el.style.width  = windowState.width;
-    if (windowState.height) el.style.height = windowState.height;
-
-    if (windowState.minimized) {
-      win.minimized = true;
-      el.classList.add('minimized');
-    }
-  });
-}
-
-// ── Export / Import ──
-
-function exportFilesystem(filename) {
-  var exportFileName = filename || 'minios-backup.json';
-  var exportData = { version: '1.0', exportDate: new Date().toISOString(), user: activeUserName, fileSystem: OS.fileSystem, session: { wallpaper: OS.getCurrentWallpaper() } };
-  var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-  var downloadUrl = URL.createObjectURL(blob);
-  var downloadLink = document.createElement('a');
-  downloadLink.href = downloadUrl;
-  downloadLink.download = exportFileName;
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
-  URL.revokeObjectURL(downloadUrl);
-}
-
-function importFilesystem(callback) {
-  var fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json';
-  fileInput.style.display = 'none';
-  document.body.appendChild(fileInput);
-  fileInput.addEventListener('change', function () {
-    var file = fileInput.files[0];
-    if (!file) { document.body.removeChild(fileInput); return; }
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var importedData = JSON.parse(reader.result);
-        var restoredFS = importedData.fileSystem || importedData;
-        if (restoredFS['C:'] && restoredFS['C:'].children) {
-          OS.fileSystem['C:'] = restoredFS['C:'];
-          saveFilesystem();
-          if (importedData.session && typeof importedData.session.wallpaper === 'number') {
-            OS.setCurrentWallpaper(importedData.session.wallpaper);
-            document.getElementById('desktop').style.background = OS.wallpapers[importedData.session.wallpaper];
-          }
-          if (callback) callback(true, file.name);
-        } else { if (callback) callback(false, 'Invalid filesystem structure'); }
-      } catch (parseError) { if (callback) callback(false, parseError.message); }
-      document.body.removeChild(fileInput);
-    };
-    reader.readAsText(file);
-  });
-  fileInput.click();
-}
-
-function setBootConfig(val) { if (val) localStorage.setItem(BOOT_KEY, val); else localStorage.removeItem(BOOT_KEY); }
-function getBootConfig() { return localStorage.getItem(BOOT_KEY) || null; }
-
-// ── Login flow ──
-
-function loginAs(userName) {
-  activeUserName = userName;
-  localStorage.setItem(ACTIVE_USER_KEY, userName);
-  OS.fileSystem['C:'] = deepClone(defaultFileSystem['C:']);
-  loadFilesystem();
-  loadSession();
-
-  // Update the start menu user name
-  var userNameElement = document.querySelector('.start-user-name');
-  if (userNameElement) userNameElement.textContent = userName;
-
-  // Hide login, go straight to desktop (boot already ran)
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('boot-screen').style.display = 'none';
-  document.getElementById('desktop').style.visibility = 'visible';
-  document.getElementById('taskbar').style.visibility = 'visible';
-
-  // Restore windows after everything settles
-  setTimeout(function () { restorePendingWindows(); }, 100);
-}
-
-function showLoginScreen() {
-  var loginScreen = document.getElementById('login-screen');
-  var bootScreen = document.getElementById('boot-screen');
-  var desktop = document.getElementById('desktop');
-  var taskbar = document.getElementById('taskbar');
-
-  bootScreen.style.display = 'none';
-  desktop.style.visibility = 'hidden';
-  taskbar.style.visibility = 'hidden';
-  loginScreen.style.display = '';
-
-  renderProfileList();
-}
-
-function renderProfileList() {
-  var profilesContainer = document.getElementById('login-profiles');
-  var profiles = getProfiles();
-  profilesContainer.innerHTML = '';
-
-  var avatarSvg = '<svg viewBox="0 0 36 36" width="36" height="36"><circle cx="18" cy="12" r="7" fill="#fff" opacity=".9"/><ellipse cx="18" cy="32" rx="12" ry="8" fill="#fff" opacity=".7"/></svg>';
-
-  profiles.forEach(function (profileName) {
-    var profileButton = document.createElement('div');
-    profileButton.className = 'login-profile-btn';
-    profileButton.innerHTML = avatarSvg + '<span>' + profileName + '</span>' +
-      '<button class="login-profile-delete" title="Delete profile">x</button>';
-
-    profileButton.addEventListener('click', function (e) {
-      if (e.target.classList.contains('login-profile-delete')) return;
-      loginAs(profileName);
-    });
-
-    profileButton.querySelector('.login-profile-delete').addEventListener('click', function (e) {
-      e.stopPropagation();
-      if (confirm('Delete profile "' + profileName + '" and all its data?')) {
-        deleteProfile(profileName);
-        renderProfileList();
-      }
-    });
-
-    profilesContainer.appendChild(profileButton);
-  });
-
-  if (profiles.length === 0) {
-    profilesContainer.innerHTML = '<div style="color:rgba(255,255,255,.5);font-size:11px;padding:10px">No profiles yet. Create one below.</div>';
-  }
-}
-
-// Wire up the "Create" button
-setTimeout(function () {
-  var newInput = document.getElementById('login-new-input');
-  var newButton = document.getElementById('login-new-btn');
-  if (!newInput || !newButton) return;
-
-  function handleCreateProfile() {
-    var name = newInput.value.trim();
-    if (!name) return;
-    if (createProfile(name)) {
-      newInput.value = '';
-      loginAs(name);
-    } else {
-      newInput.value = '';
-      newInput.placeholder = 'Name already exists';
-    }
-  }
-
-  newButton.addEventListener('click', handleCreateProfile);
-  newInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleCreateProfile(); });
-}, 0);
-
-// ── Auto-save ──
-setInterval(function () { saveFilesystem(); saveSession(); }, 15000);
-window.addEventListener('beforeunload', function () { saveFilesystem(); saveSession(); });
-
-// ── Boot decision: show login or auto-login last user ──
-var profiles = getProfiles();
-var lastUser = localStorage.getItem(ACTIVE_USER_KEY);
-
-if (profiles.length === 0) {
-  // No profiles at all — create a default one and login
-  createProfile('User');
-  loginAs('User');
-} else if (lastUser && profiles.indexOf(lastUser) >= 0) {
-  // Auto-login to last user but still show login screen for profile selection
-  loginAs(lastUser);
-} else {
-  showLoginScreen();
-}
-
-// ── Log Off handler (show login screen again) ──
-setTimeout(function () {
-  var logoffButton = document.getElementById('logoff-btn');
-  if (logoffButton) {
-    var originalHandler = logoffButton.onclick;
-    logoffButton.addEventListener('click', function () {
-      // Close all windows
-      while (OS.windows.length) {
-        var closeBtn = OS.windows[0].el.querySelector('.btn-close');
-        if (closeBtn) closeBtn.click(); else break;
-      }
-      saveFilesystem();
-      saveSession();
-      document.querySelector('#start-menu').classList.add('hidden');
-      activeUserName = null;
-      localStorage.removeItem(ACTIVE_USER_KEY);
-      showLoginScreen();
-    });
-  }
-}, 0);
-
-// ── Expose API ──
-OS.saveFilesystem = saveFilesystem;
-OS.loadFilesystem = loadFilesystem;
-OS.resetFilesystem = resetFilesystem;
-OS.saveSession = saveSession;
-OS.loadSession = loadSession;
-OS.exportFilesystem = exportFilesystem;
-OS.importFilesystem = importFilesystem;
-OS.setBootConfig = setBootConfig;
-OS.getBootConfig = getBootConfig;
-OS.getActiveUser = function () { return activeUserName; };
-OS.onWindowChanged = function () { saveSession(); };
-OS.getProfiles = getProfiles;
-
-})();
+.window-pinned .window-title::before{content:'📌 ';font-size:10px}
