@@ -4,61 +4,505 @@ var OS = window.MicroOS;
 
 // ── Notepad ──
 OS.registerApp('notepad', function buildNotepad() {
-  var savedContent = localStorage.getItem('micro-notepad') || 'Welcome to Mini OS Notepad!';
-  var windowObj = OS.createWindow('Untitled - Notepad', 480, 360,
-    '<div class="notepad-menu"><span>File</span><span>Edit</span><span>Format</span><span>View</span><span>Help</span></div>' +
-    '<div class="notepad-find-bar" style="display:none;padding:3px 6px;background:#ece9d8;border-bottom:1px solid #aca899;font-size:11px;gap:4px;align-items:center">' +
-      '<span>Find:</span>' +
-      '<input class="notepad-find-input" style="flex:1;padding:1px 4px;font-size:11px;border:1px inset #c8c4b8;font-family:inherit" />' +
-      '<button class="notepad-find-next" style="padding:1px 8px;font-size:10px;font-family:inherit;cursor:pointer">Next</button>' +
-      '<button class="notepad-find-close" style="padding:1px 6px;font-size:10px;font-family:inherit;cursor:pointer">X</button>' +
-    '</div>' +
-    '<textarea class="notepad-body">' + OS.escapeHtml(savedContent) + '</textarea>');
-  var notepadBody = windowObj.el.querySelector('.notepad-body');
-  var findBar = windowObj.el.querySelector('.notepad-find-bar');
-  var findInput = windowObj.el.querySelector('.notepad-find-input');
+  var STORAGE_KEY = 'micro-notepad-v2';
 
-  notepadBody.addEventListener('input', function () {
-    localStorage.setItem('micro-notepad', this.value);
-  });
+  // ── Simple Markdown renderer ──
+  function renderMarkdown(rawText) {
+    var lines = rawText.split('\n');
+    var outputHtml = '';
+    var insideCodeBlock = false;
+    var insideOrderedList = false;
+    var insideUnorderedList = false;
 
-  function showFindBar() {
-    findBar.style.display = 'flex';
-    findInput.focus();
-    var selectedText = notepadBody.value.substring(notepadBody.selectionStart, notepadBody.selectionEnd);
-    if (selectedText) findInput.value = selectedText;
-    findInput.select();
+    function closeOpenLists() {
+      if (insideUnorderedList) { outputHtml += '</ul>'; insideUnorderedList = false; }
+      if (insideOrderedList)   { outputHtml += '</ol>'; insideOrderedList = false; }
+    }
+
+    function applyInlineStyles(text) {
+      // Escape HTML first
+      text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      // Code spans
+      text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // Bold+italic
+      text = text.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      // Bold
+      text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      // Italic
+      text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+      // Strikethrough
+      text = text.replace(/~~(.+?)~~/g, '<del>$1</del>');
+      // Links
+      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      return text;
+    }
+
+    lines.forEach(function (line) {
+      if (line.startsWith('```')) {
+        if (insideCodeBlock) {
+          outputHtml += '</code></pre>';
+          insideCodeBlock = false;
+        } else {
+          closeOpenLists();
+          var language = line.slice(3).trim();
+          outputHtml += '<pre><code' + (language ? ' class="lang-' + language + '"' : '') + '>';
+          insideCodeBlock = true;
+        }
+        return;
+      }
+
+      if (insideCodeBlock) {
+        outputHtml += line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '\n';
+        return;
+      }
+
+      if (/^#{1,6}\s/.test(line)) {
+        closeOpenLists();
+        var headingLevel = line.match(/^(#{1,6})\s/)[1].length;
+        var headingText = line.slice(headingLevel + 1);
+        outputHtml += '<h' + headingLevel + '>' + applyInlineStyles(headingText) + '</h' + headingLevel + '>';
+        return;
+      }
+
+      if (/^[-*]\s/.test(line)) {
+        if (insideOrderedList) { outputHtml += '</ol>'; insideOrderedList = false; }
+        if (!insideUnorderedList) { outputHtml += '<ul>'; insideUnorderedList = true; }
+        outputHtml += '<li>' + applyInlineStyles(line.slice(2)) + '</li>';
+        return;
+      }
+
+      if (/^\d+\.\s/.test(line)) {
+        if (insideUnorderedList) { outputHtml += '</ul>'; insideUnorderedList = false; }
+        if (!insideOrderedList) { outputHtml += '<ol>'; insideOrderedList = true; }
+        outputHtml += '<li>' + applyInlineStyles(line.replace(/^\d+\.\s/, '')) + '</li>';
+        return;
+      }
+
+      if (/^>\s?/.test(line)) {
+        closeOpenLists();
+        outputHtml += '<blockquote>' + applyInlineStyles(line.replace(/^>\s?/, '')) + '</blockquote>';
+        return;
+      }
+
+      if (/^[-*_]{3,}$/.test(line.trim())) {
+        closeOpenLists();
+        outputHtml += '<hr />';
+        return;
+      }
+
+      closeOpenLists();
+      if (line.trim() === '') {
+        outputHtml += '<br />';
+      } else {
+        outputHtml += '<p>' + applyInlineStyles(line) + '</p>';
+      }
+    });
+
+    closeOpenLists();
+    if (insideCodeBlock) outputHtml += '</code></pre>';
+    return outputHtml;
   }
 
-  function findNext() {
-    var searchTerm = findInput.value;
-    if (!searchTerm) return;
-    var text = notepadBody.value;
-    var startFrom = notepadBody.selectionEnd || 0;
-    var foundIndex = text.toLowerCase().indexOf(searchTerm.toLowerCase(), startFrom);
-    if (foundIndex === -1) foundIndex = text.toLowerCase().indexOf(searchTerm.toLowerCase(), 0);
-    if (foundIndex >= 0) {
-      notepadBody.focus();
-      notepadBody.setSelectionRange(foundIndex, foundIndex + searchTerm.length);
+  // ── Note storage helpers ──
+  function loadAllNotes() {
+    try {
+      var stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        var parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (storageError) { /* fallback below */ }
+    return [{ id: Date.now(), title: 'Welcome', content: '# Welcome to Notepad\n\nThis is your new **multi-note** editor.\n\n- Click **New** to create a note\n- Double-click a note title to rename it\n- Toggle **Preview** to render Markdown\n\n---\n\nHappy writing!' }];
+  }
+
+  function persistAllNotes(notesList) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notesList)); } catch (e) {}
+  }
+
+  function generateUniqueId() {
+    return Date.now() + Math.floor(Math.random() * 1000);
+  }
+
+  function getTodayTimestamp() {
+    return new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Build window HTML ──
+  var windowHtml =
+    '<div class="np2-shell">' +
+      '<div class="np2-sidebar">' +
+        '<div class="np2-sidebar-actions">' +
+          '<button class="np2-btn-new" title="New Note (Shift+N)">+ New</button>' +
+          '<button class="np2-btn-delete" title="Delete selected note">Delete</button>' +
+        '</div>' +
+        '<div class="np2-note-list"></div>' +
+      '</div>' +
+      '<div class="np2-editor-panel">' +
+        '<div class="np2-title-bar">' +
+          '<input class="np2-title-input" type="text" placeholder="Note title..." />' +
+        '</div>' +
+        '<div class="np2-toolbar">' +
+          '<button class="np2-tb-btn" data-action="bold"       title="Bold (Shift+B)"><b>B</b></button>' +
+          '<button class="np2-tb-btn" data-action="italic"     title="Italic (Shift+I)"><i>I</i></button>' +
+          '<button class="np2-tb-btn" data-action="strike"     title="Strikethrough"><s>S</s></button>' +
+          '<button class="np2-tb-btn" data-action="code"       title="Inline code"><code>`c`</code></button>' +
+          '<span class="np2-tb-sep"></span>' +
+          '<button class="np2-tb-btn" data-action="h1"         title="Heading 1">H1</button>' +
+          '<button class="np2-tb-btn" data-action="h2"         title="Heading 2">H2</button>' +
+          '<button class="np2-tb-btn" data-action="h3"         title="Heading 3">H3</button>' +
+          '<span class="np2-tb-sep"></span>' +
+          '<button class="np2-tb-btn" data-action="ul"         title="Bullet list">• List</button>' +
+          '<button class="np2-tb-btn" data-action="ol"         title="Numbered list">1. List</button>' +
+          '<button class="np2-tb-btn" data-action="quote"      title="Blockquote">" Quote</button>' +
+          '<button class="np2-tb-btn" data-action="hr"         title="Horizontal rule">─ Rule</button>' +
+          '<span class="np2-tb-sep"></span>' +
+          '<button class="np2-tb-btn np2-btn-preview" data-action="preview" title="Toggle Preview (Shift+P)">Preview</button>' +
+          '<span class="np2-tb-sep"></span>' +
+          '<button class="np2-tb-btn" data-action="find"       title="Find (Shift+F)">Find</button>' +
+        '</div>' +
+        '<div class="np2-find-bar" style="display:none">' +
+          '<span>Find:</span>' +
+          '<input class="np2-find-input" type="text" />' +
+          '<button class="np2-find-next">Next</button>' +
+          '<button class="np2-find-prev">Prev</button>' +
+          '<button class="np2-find-close"><svg viewBox="0 0 10 10" width="10" height="10" style="vertical-align:middle"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>' +
+          '<span class="np2-find-count"></span>' +
+        '</div>' +
+        '<div class="np2-body-wrap">' +
+          '<textarea class="np2-textarea" spellcheck="true" placeholder="Start writing..."></textarea>' +
+          '<div class="np2-preview" style="display:none"></div>' +
+        '</div>' +
+        '<div class="np2-status-bar">' +
+          '<span class="np2-status-words">0 words</span>' +
+          '<span class="np2-status-saved">Saved</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  var windowObj = OS.createWindow('Notepad', 680, 480, windowHtml);
+  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+
+  // ── Element references ──
+  var noteListEl       = windowObj.el.querySelector('.np2-note-list');
+  var titleInputEl     = windowObj.el.querySelector('.np2-title-input');
+  var textareaEl       = windowObj.el.querySelector('.np2-textarea');
+  var previewEl        = windowObj.el.querySelector('.np2-preview');
+  var statusWordsEl    = windowObj.el.querySelector('.np2-status-words');
+  var statusSavedEl    = windowObj.el.querySelector('.np2-status-saved');
+  var findBarEl        = windowObj.el.querySelector('.np2-find-bar');
+  var findInputEl      = windowObj.el.querySelector('.np2-find-input');
+  var findCountEl      = windowObj.el.querySelector('.np2-find-count');
+  var previewBtn       = windowObj.el.querySelector('.np2-btn-preview');
+  var deleteBtn        = windowObj.el.querySelector('.np2-btn-delete');
+
+  // ── State ──
+  var notesList        = loadAllNotes();
+  var activeNoteIndex  = 0;
+  var isPreviewMode    = false;
+  var autoSaveTimer    = null;
+
+  // ── Render sidebar note list ──
+  function renderNoteList() {
+    noteListEl.innerHTML = '';
+    notesList.forEach(function (note, index) {
+      var noteItemEl = document.createElement('div');
+      noteItemEl.className = 'np2-note-item' + (index === activeNoteIndex ? ' active' : '');
+      noteItemEl.dataset.index = index;
+
+      var noteTitleSpan = document.createElement('span');
+      noteTitleSpan.className = 'np2-note-item-title';
+      noteTitleSpan.textContent = note.title || 'Untitled';
+
+      noteItemEl.appendChild(noteTitleSpan);
+      noteListEl.appendChild(noteItemEl);
+
+      noteItemEl.addEventListener('click', function () {
+        saveCurrentNoteContent();
+        activeNoteIndex = index;
+        loadActiveNote();
+        renderNoteList();
+      });
+
+      noteTitleSpan.addEventListener('dblclick', function (doubleClickEvent) {
+        doubleClickEvent.stopPropagation();
+        startInlineRename(noteTitleSpan, index);
+      });
+    });
+  }
+
+  // ── Inline rename on double-click ──
+  function startInlineRename(titleSpanEl, noteIndex) {
+    var currentTitle = notesList[noteIndex].title || 'Untitled';
+    var renameInput = document.createElement('input');
+    renameInput.className = 'np2-rename-input';
+    renameInput.type = 'text';
+    renameInput.value = currentTitle;
+
+    titleSpanEl.replaceWith(renameInput);
+    renameInput.focus();
+    renameInput.select();
+
+    function commitRename() {
+      var newTitle = renameInput.value.trim() || 'Untitled';
+      notesList[noteIndex].title = newTitle;
+      persistAllNotes(notesList);
+      renderNoteList();
+      if (noteIndex === activeNoteIndex) titleInputEl.value = newTitle;
+    }
+
+    renameInput.addEventListener('blur', commitRename);
+    renameInput.addEventListener('keydown', function (keyEvent) {
+      if (keyEvent.key === 'Enter') renameInput.blur();
+      if (keyEvent.key === 'Escape') { notesList[noteIndex].title = currentTitle; renderNoteList(); }
+    });
+  }
+
+  // ── Load the active note into the editor ──
+  function loadActiveNote() {
+    var activeNote = notesList[activeNoteIndex];
+    if (!activeNote) return;
+    titleInputEl.value = activeNote.title || '';
+    textareaEl.value   = activeNote.content || '';
+    updateWordCount();
+    if (isPreviewMode) refreshPreview();
+    statusSavedEl.textContent = 'Saved';
+    deleteBtn.disabled = notesList.length <= 1;
+  }
+
+  // ── Save textarea content into notesList without persisting to localStorage ──
+  function saveCurrentNoteContent() {
+    if (!notesList[activeNoteIndex]) return;
+    notesList[activeNoteIndex].content  = textareaEl.value;
+    notesList[activeNoteIndex].title    = titleInputEl.value.trim() || 'Untitled';
+    notesList[activeNoteIndex].modified = getTodayTimestamp();
+  }
+
+  // ── Debounced auto-save to localStorage ──
+  function scheduleAutoSave() {
+    statusSavedEl.textContent = 'Saving…';
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(function () {
+      saveCurrentNoteContent();
+      persistAllNotes(notesList);
+      statusSavedEl.textContent = 'Saved';
+    }, 600);
+  }
+
+  // ── Word count ──
+  function updateWordCount() {
+    var words = textareaEl.value.trim().split(/\s+/).filter(function (word) { return word.length > 0; });
+    statusWordsEl.textContent = words.length + (words.length === 1 ? ' word' : ' words');
+  }
+
+  // ── Markdown preview ──
+  function refreshPreview() {
+    previewEl.innerHTML = renderMarkdown(textareaEl.value);
+  }
+
+  function togglePreviewMode() {
+    isPreviewMode = !isPreviewMode;
+    if (isPreviewMode) {
+      refreshPreview();
+      textareaEl.style.display = 'none';
+      previewEl.style.display  = 'block';
+      previewBtn.classList.add('active');
+      previewBtn.textContent = 'Edit';
+    } else {
+      textareaEl.style.display = 'block';
+      previewEl.style.display  = 'none';
+      previewBtn.classList.remove('active');
+      previewBtn.textContent = 'Preview';
+      textareaEl.focus();
     }
   }
 
-  windowObj.el.querySelector('.notepad-find-next').addEventListener('click', findNext);
-  findInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); findNext(); }
-    if (e.key === 'Escape') { findBar.style.display = 'none'; notepadBody.focus(); }
-  });
-  windowObj.el.querySelector('.notepad-find-close').addEventListener('click', function () {
-    findBar.style.display = 'none';
-    notepadBody.focus();
+  // ── Toolbar: wrap selection or insert at cursor ──
+  function insertMarkdownWrapper(prefix, suffix) {
+    if (isPreviewMode) return;
+    textareaEl.focus();
+    var start  = textareaEl.selectionStart;
+    var end    = textareaEl.selectionEnd;
+    var before = textareaEl.value.substring(0, start);
+    var selected = textareaEl.value.substring(start, end);
+    var after  = textareaEl.value.substring(end);
+    var replacement = prefix + (selected || 'text') + suffix;
+    textareaEl.value = before + replacement + after;
+    var cursorStart = start + prefix.length;
+    var cursorEnd   = cursorStart + (selected || 'text').length;
+    textareaEl.setSelectionRange(cursorStart, cursorEnd);
+    scheduleAutoSave();
+    updateWordCount();
+  }
+
+  function insertLinePrefix(prefix) {
+    if (isPreviewMode) return;
+    textareaEl.focus();
+    var start       = textareaEl.selectionStart;
+    var beforeCursor = textareaEl.value.substring(0, start);
+    var lineStart   = beforeCursor.lastIndexOf('\n') + 1;
+    var before      = textareaEl.value.substring(0, lineStart);
+    var restOfText  = textareaEl.value.substring(lineStart);
+    textareaEl.value = before + prefix + restOfText;
+    textareaEl.setSelectionRange(start + prefix.length, start + prefix.length);
+    scheduleAutoSave();
+    updateWordCount();
+  }
+
+  var toolbarActions = {
+    bold:    function () { insertMarkdownWrapper('**', '**'); },
+    italic:  function () { insertMarkdownWrapper('*', '*'); },
+    strike:  function () { insertMarkdownWrapper('~~', '~~'); },
+    code:    function () { insertMarkdownWrapper('`', '`'); },
+    h1:      function () { insertLinePrefix('# '); },
+    h2:      function () { insertLinePrefix('## '); },
+    h3:      function () { insertLinePrefix('### '); },
+    ul:      function () { insertLinePrefix('- '); },
+    ol:      function () { insertLinePrefix('1. '); },
+    quote:   function () { insertLinePrefix('> '); },
+    hr:      function () { insertMarkdownWrapper('\n---\n', ''); },
+    preview: togglePreviewMode,
+    find:    function () { toggleFindBar(); }
+  };
+
+  windowObj.el.querySelector('.np2-toolbar').addEventListener('click', function (toolbarEvent) {
+    var actionName = toolbarEvent.target.closest('[data-action]');
+    if (!actionName) return;
+    var action = toolbarActions[actionName.dataset.action];
+    if (action) action();
   });
 
-  windowObj.el.addEventListener('keydown', function (e) {
-    if (e.shiftKey && e.key === 'F' && document.activeElement !== notepadBody && document.activeElement !== findInput) {
-      e.preventDefault();
-      showFindBar();
+  // ── Find bar ──
+  var findSearchTerm    = '';
+  var findMatchPositions = [];
+  var findActiveIndex   = -1;
+
+  function toggleFindBar() {
+    var isVisible = findBarEl.style.display !== 'none';
+    if (isVisible) {
+      findBarEl.style.display = 'none';
+      textareaEl.focus();
+    } else {
+      findBarEl.style.display = 'flex';
+      var selectedText = textareaEl.value.substring(textareaEl.selectionStart, textareaEl.selectionEnd);
+      if (selectedText) findInputEl.value = selectedText;
+      findInputEl.focus();
+      findInputEl.select();
+      runFindSearch();
+    }
+  }
+
+  function runFindSearch() {
+    findSearchTerm = findInputEl.value;
+    findMatchPositions = [];
+    findActiveIndex = -1;
+    if (!findSearchTerm) { findCountEl.textContent = ''; return; }
+    var lowerContent = textareaEl.value.toLowerCase();
+    var lowerTerm    = findSearchTerm.toLowerCase();
+    var searchStart  = 0;
+    while (true) {
+      var matchPos = lowerContent.indexOf(lowerTerm, searchStart);
+      if (matchPos === -1) break;
+      findMatchPositions.push(matchPos);
+      searchStart = matchPos + 1;
+    }
+    findCountEl.textContent = findMatchPositions.length + ' match' + (findMatchPositions.length !== 1 ? 'es' : '');
+  }
+
+  function jumpToFindMatch(direction) {
+    if (findMatchPositions.length === 0) return;
+    if (direction === 'next') {
+      findActiveIndex = (findActiveIndex + 1) % findMatchPositions.length;
+    } else {
+      findActiveIndex = (findActiveIndex - 1 + findMatchPositions.length) % findMatchPositions.length;
+    }
+    var matchPosition = findMatchPositions[findActiveIndex];
+    textareaEl.focus();
+    textareaEl.setSelectionRange(matchPosition, matchPosition + findSearchTerm.length);
+    findCountEl.textContent = (findActiveIndex + 1) + ' / ' + findMatchPositions.length;
+  }
+
+  findInputEl.addEventListener('input', runFindSearch);
+  findInputEl.addEventListener('keydown', function (keyEvent) {
+    if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); jumpToFindMatch('next'); }
+    if (keyEvent.key === 'Escape') { findBarEl.style.display = 'none'; textareaEl.focus(); }
+  });
+  windowObj.el.querySelector('.np2-find-next').addEventListener('click', function () { jumpToFindMatch('next'); });
+  windowObj.el.querySelector('.np2-find-prev').addEventListener('click', function () { jumpToFindMatch('prev'); });
+  windowObj.el.querySelector('.np2-find-close').addEventListener('click', function () {
+    findBarEl.style.display = 'none';
+    textareaEl.focus();
+  });
+
+  // ── New note ──
+  windowObj.el.querySelector('.np2-btn-new').addEventListener('click', function () {
+    saveCurrentNoteContent();
+    var newNote = { id: generateUniqueId(), title: 'New Note', content: '', modified: getTodayTimestamp() };
+    notesList.unshift(newNote);
+    activeNoteIndex = 0;
+    persistAllNotes(notesList);
+    renderNoteList();
+    loadActiveNote();
+    titleInputEl.focus();
+    titleInputEl.select();
+  });
+
+  // ── Delete note ──
+  deleteBtn.addEventListener('click', function () {
+    if (notesList.length <= 1) return;
+    var noteTitle = notesList[activeNoteIndex].title || 'this note';
+    OS.confirm('Delete "' + noteTitle + '"?', function (confirmed) {
+      if (!confirmed) return;
+      notesList.splice(activeNoteIndex, 1);
+      activeNoteIndex = Math.min(activeNoteIndex, notesList.length - 1);
+      persistAllNotes(notesList);
+      renderNoteList();
+      loadActiveNote();
+    });
+  });
+
+  // ── Title input: sync title to note ──
+  titleInputEl.addEventListener('input', function () {
+    if (notesList[activeNoteIndex]) {
+      notesList[activeNoteIndex].title = titleInputEl.value.trim() || 'Untitled';
+      renderNoteList();
+      scheduleAutoSave();
     }
   });
+
+  // ── Textarea: sync content to note + word count ──
+  textareaEl.addEventListener('input', function () {
+    updateWordCount();
+    scheduleAutoSave();
+  });
+
+  // ── Keyboard shortcuts (Shift+key, only when not typing in an input/textarea) ──
+  windowObj.el.addEventListener('keydown', function (keyboardEvent) {
+    var focusedElement = document.activeElement;
+    var isTypingInInput = focusedElement === textareaEl
+      || focusedElement === titleInputEl
+      || focusedElement === findInputEl
+      || (focusedElement && focusedElement.classList.contains('np2-rename-input'));
+
+    if (keyboardEvent.shiftKey && !isTypingInInput) {
+      var pressedKey = keyboardEvent.key.toUpperCase();
+      if (pressedKey === 'B') { keyboardEvent.preventDefault(); toolbarActions.bold(); }
+      if (pressedKey === 'I') { keyboardEvent.preventDefault(); toolbarActions.italic(); }
+      if (pressedKey === 'F') { keyboardEvent.preventDefault(); toggleFindBar(); }
+      if (pressedKey === 'P') { keyboardEvent.preventDefault(); togglePreviewMode(); }
+      if (pressedKey === 'N') { keyboardEvent.preventDefault(); windowObj.el.querySelector('.np2-btn-new').click(); }
+    }
+
+    if (keyboardEvent.key === 'Tab' && document.activeElement === textareaEl) {
+      keyboardEvent.preventDefault();
+      insertMarkdownWrapper('  ', '');
+    }
+  });
+
+  // ── Init ──
+  renderNoteList();
+  loadActiveNote();
 });
 
 // ── Calculator ──
@@ -200,7 +644,7 @@ OS.registerApp('files', function buildFiles() {
     return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   }
 
-  function openFile(name, fileData) {
+  function openFile(name, fileData, callerParentNode) {
     var content = fileData.content || '';
     var lowerName = name.toLowerCase();
 
@@ -339,13 +783,309 @@ OS.registerApp('files', function buildFiles() {
       return;
     }
 
-    var editWindow = OS.createWindow(name + ' - Notepad', 460, 320,
-      '<div class="notepad-menu"><span>File</span><span>Edit</span></div>' +
-      '<textarea class="notepad-body">' + OS.escapeHtml(content) + '</textarea>');
-    editWindow.el.querySelector('.notepad-body').addEventListener('input', function () {
-      fileData.content = this.value;
-      fileData.size = this.value.length;
+    // ── Improved text file editor ──
+    var feExt  = name.lastIndexOf('.') >= 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase() : 'txt';
+    var feBase = name.lastIndexOf('.') >= 0 ? name.substring(0, name.lastIndexOf('.')) : name;
+    var feCurrentName = name;
+
+    var feAllTypes = ['txt','md','json','html','css','js','bat','log','cfg','app','csv'];
+    var feTypeButtons = feAllTypes.map(function (ext) {
+      return '<button class="fe-type-btn' + (ext === feExt ? ' active' : '') + '" data-ext="' + ext + '">.' + ext + '</button>';
+    }).join('');
+
+    var feIsMd   = feExt === 'md';
+    var feIsJson = feExt === 'json';
+    var feIsHtml = feExt === 'html' || feExt === 'htm';
+
+    var feToolbar = '';
+    if (feIsMd) {
+      feToolbar = '<button class="fe-tb" data-a="bold"><b>B</b></button>' +
+        '<button class="fe-tb" data-a="italic"><i>I</i></button>' +
+        '<button class="fe-tb" data-a="h1">H1</button>' +
+        '<button class="fe-tb" data-a="h2">H2</button>' +
+        '<span class="fe-tb-sep"></span>' +
+        '<button class="fe-tb" data-a="ul">• List</button>' +
+        '<button class="fe-tb" data-a="ol">1. List</button>' +
+        '<button class="fe-tb" data-a="code">`code`</button>' +
+        '<button class="fe-tb" data-a="quote">" Quote</button>' +
+        '<button class="fe-tb" data-a="hr">─ Rule</button>' +
+        '<span class="fe-tb-sep"></span>' +
+        '<button class="fe-tb fe-preview-btn" data-a="preview">Preview</button>';
+    } else if (feIsJson) {
+      feToolbar = '<button class="fe-tb" data-a="prettify">Format JSON</button>' +
+        '<button class="fe-tb" data-a="minify">Minify</button>' +
+        '<button class="fe-tb" data-a="validate">Validate</button>';
+    } else if (feIsHtml) {
+      feToolbar = '<button class="fe-tb fe-preview-btn" data-a="preview-html">Preview HTML</button>' +
+        '<span class="fe-tb-sep"></span>' +
+        '<button class="fe-tb" data-a="wrap-p">&lt;p&gt;</button>' +
+        '<button class="fe-tb" data-a="wrap-div">&lt;div&gt;</button>' +
+        '<button class="fe-tb" data-a="wrap-b">&lt;b&gt;</button>' +
+        '<button class="fe-tb" data-a="wrap-a">&lt;a&gt;</button>' +
+        '<button class="fe-tb" data-a="wrap-h1">&lt;h1&gt;</button>';
+    } else {
+      feToolbar = '<button class="fe-tb" data-a="datetime"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="3" width="14" height="12" rx="1" fill="#fff" stroke="#888" stroke-width=".8"/><rect x="1" y="3" width="14" height="4" rx="1" fill="#4a7acc"/><line x1="5" y1="1" x2="5" y2="5" stroke="#555" stroke-width="1.2" stroke-linecap="round"/><line x1="11" y1="1" x2="11" y2="5" stroke="#555" stroke-width="1.2" stroke-linecap="round"/><rect x="3" y="9" width="2" height="2" rx=".3" fill="#ccc"/><rect x="7" y="9" width="2" height="2" rx=".3" fill="#ccc"/><rect x="11" y="9" width="2" height="2" rx=".3" fill="#ccc"/></svg> Date/Time</button>' +
+        '<button class="fe-tb" data-a="divider">─ Divider</button>' +
+        '<button class="fe-tb" data-a="wrap-toggle">Wrap</button>';
+    }
+
+    var feHtml =
+      '<div class="fe-shell">' +
+        '<div class="fe-topbar">' +
+          '<span class="fe-topbar-label">Rename:</span>' +
+          '<input class="fe-name-input" type="text" value="' + OS.escapeHtml(feBase) + '" />' +
+          '<div class="fe-type-pills">' + feTypeButtons + '</div>' +
+        '</div>' +
+        '<div class="fe-toolbar">' + feToolbar + '</div>' +
+        '<div class="fe-body-wrap">' +
+          '<textarea class="fe-textarea" spellcheck="true">' + OS.escapeHtml(content) + '</textarea>' +
+          '<div class="fe-preview-pane" style="display:none"></div>' +
+        '</div>' +
+        '<div class="fe-statusbar">' +
+          '<span class="fe-stat"></span>' +
+          '<span class="fe-saved">Saved</span>' +
+        '</div>' +
+      '</div>';
+
+    var editWindow = OS.createWindow(name, 530, 440, feHtml);
+    editWindow.el.querySelector('.window-body').classList.add('window-body-flex');
+
+    var feTa        = editWindow.el.querySelector('.fe-textarea');
+    var fePreview   = editWindow.el.querySelector('.fe-preview-pane');
+    var feStat      = editWindow.el.querySelector('.fe-stat');
+    var feSaved     = editWindow.el.querySelector('.fe-saved');
+    var feNameInput = editWindow.el.querySelector('.fe-name-input');
+    var feToolbarEl = editWindow.el.querySelector('.fe-toolbar');
+    var fePillsEl   = editWindow.el.querySelector('.fe-type-pills');
+    var feInPreview = false;
+    var feWrap      = true;
+    var feSaveTimer = null;
+
+    function feUpdateStat() {
+      var text  = feTa.value;
+      var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      var lines = text.split('\n').length;
+      feStat.textContent = words + ' words · ' + text.length + ' chars · ' + lines + ' lines';
+    }
+
+    function feScheduleSave() {
+      feSaved.textContent = 'Saving…';
+      clearTimeout(feSaveTimer);
+      feSaveTimer = setTimeout(function () {
+        fileData.content = feTa.value;
+        fileData.size    = feTa.value.length;
+        feSaved.textContent = 'Saved';
+      }, 400);
+    }
+
+    function feSimpleMd(text) {
+      var html = '';
+      var lines = text.split('\n');
+      var inCode = false;
+      lines.forEach(function (ln) {
+        if (ln.startsWith('```')) { inCode = !inCode; html += inCode ? '<pre><code>' : '</code></pre>'; return; }
+        if (inCode) { html += ln.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '\n'; return; }
+        var safe = ln.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        safe = safe.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/~~(.+?)~~/g,'<del>$1</del>');
+        if (/^#{1,6}\s/.test(ln)) { var lvl = ln.match(/^(#{1,6})\s/)[1].length; html += '<h' + lvl + '>' + safe.replace(/^#{1,6}\s/,'') + '</h' + lvl + '>'; return; }
+        if (/^[-*]\s/.test(ln)) { html += '<li>' + safe.slice(2) + '</li>'; return; }
+        if (/^>\s?/.test(ln)) { html += '<blockquote>' + safe.replace(/^>\s?/,'') + '</blockquote>'; return; }
+        if (/^[-*_]{3,}$/.test(ln.trim())) { html += '<hr />'; return; }
+        html += ln.trim() ? '<p>' + safe + '</p>' : '<br />';
+      });
+      if (inCode) html += '</code></pre>';
+      return html;
+    }
+
+    function feTogglePreview() {
+      feInPreview = !feInPreview;
+      if (feInPreview) {
+        fePreview.innerHTML = feSimpleMd(feTa.value);
+        feTa.style.display = 'none';
+        fePreview.style.display = 'block';
+        var previewBtn = feToolbarEl.querySelector('[data-a="preview"]');
+        if (previewBtn) { previewBtn.textContent = 'Edit'; previewBtn.classList.add('active'); }
+      } else {
+        feTa.style.display = 'block';
+        fePreview.style.display = 'none';
+        var previewBtn = feToolbarEl.querySelector('[data-a="preview"]');
+        if (previewBtn) { previewBtn.textContent = 'Preview'; previewBtn.classList.remove('active'); }
+        feTa.focus();
+      }
+    }
+
+    function feInsertWrap(prefix, suffix) {
+      if (feInPreview) return;
+      feTa.focus();
+      var start = feTa.selectionStart;
+      var end   = feTa.selectionEnd;
+      var sel   = feTa.value.substring(start, end) || 'text';
+      feTa.value = feTa.value.substring(0, start) + prefix + sel + suffix + feTa.value.substring(end);
+      feTa.setSelectionRange(start + prefix.length, start + prefix.length + sel.length);
+      feScheduleSave(); feUpdateStat();
+    }
+
+    function feInsertLinePrefix(prefix) {
+      if (feInPreview) return;
+      feTa.focus();
+      var start     = feTa.selectionStart;
+      var lineStart = feTa.value.lastIndexOf('\n', start - 1) + 1;
+      feTa.value = feTa.value.substring(0, lineStart) + prefix + feTa.value.substring(lineStart);
+      feTa.setSelectionRange(start + prefix.length, start + prefix.length);
+      feScheduleSave(); feUpdateStat();
+    }
+
+    feToolbarEl.addEventListener('click', function (toolbarClickEvent) {
+      var btn = toolbarClickEvent.target.closest('[data-a]');
+      if (!btn) return;
+      var action = btn.dataset.a;
+      if (action === 'bold')         feInsertWrap('**', '**');
+      else if (action === 'italic')  feInsertWrap('*', '*');
+      else if (action === 'code')    feInsertWrap('`', '`');
+      else if (action === 'hr')      feInsertWrap('\n---\n', '');
+      else if (action === 'h1')      feInsertLinePrefix('# ');
+      else if (action === 'h2')      feInsertLinePrefix('## ');
+      else if (action === 'ul')      feInsertLinePrefix('- ');
+      else if (action === 'ol')      feInsertLinePrefix('1. ');
+      else if (action === 'quote')   feInsertLinePrefix('> ');
+      else if (action === 'wrap-p')  feInsertWrap('<p>', '</p>');
+      else if (action === 'wrap-div') feInsertWrap('<div>', '</div>');
+      else if (action === 'wrap-b')  feInsertWrap('<b>', '</b>');
+      else if (action === 'wrap-a')  feInsertWrap('<a href="">', '</a>');
+      else if (action === 'wrap-h1') feInsertWrap('<h1>', '</h1>');
+      else if (action === 'preview') feTogglePreview();
+      else if (action === 'preview-html') {
+        var htmlPrev = OS.createWindow('Preview - ' + feCurrentName, 500, 380,
+          '<iframe style="width:100%;height:100%;border:none" sandbox="allow-same-origin"></iframe>');
+        htmlPrev.el.querySelector('.window-body').classList.add('window-body-flex');
+        htmlPrev.el.querySelector('iframe').srcdoc = feTa.value;
+      }
+      else if (action === 'prettify') {
+        try { feTa.value = JSON.stringify(JSON.parse(feTa.value), null, 2); feScheduleSave(); feUpdateStat(); }
+        catch (jsonErr) { OS.showNotification('JSON', 'Invalid JSON: ' + jsonErr.message); }
+      }
+      else if (action === 'minify') {
+        try { feTa.value = JSON.stringify(JSON.parse(feTa.value)); feScheduleSave(); feUpdateStat(); }
+        catch (jsonErr) { OS.showNotification('JSON', 'Invalid JSON: ' + jsonErr.message); }
+      }
+      else if (action === 'validate') {
+        try { JSON.parse(feTa.value); OS.showNotification('JSON', '&#10003; Valid JSON'); }
+        catch (jsonErr) { OS.showNotification('JSON', 'Invalid: ' + jsonErr.message); }
+      }
+      else if (action === 'datetime') feInsertWrap(new Date().toLocaleString(), '');
+      else if (action === 'divider')  feInsertWrap('\n' + '─'.repeat(40) + '\n', '');
+      else if (action === 'wrap-toggle') {
+        feWrap = !feWrap;
+        feTa.style.whiteSpace = feWrap ? 'pre-wrap' : 'pre';
+        feTa.style.overflowX  = feWrap ? 'hidden' : 'auto';
+        btn.classList.toggle('active', feWrap);
+      }
     });
+
+    // ── File type pill switcher ──
+    fePillsEl.addEventListener('click', function (pillClickEvent) {
+      var pill = pillClickEvent.target.closest('[data-ext]');
+      if (!pill) return;
+      var newExt  = pill.dataset.ext;
+      var newName = feNameInput.value.trim() || feBase;
+      if (!newName) return;
+      var fullNewName = newName + '.' + newExt;
+      if (fullNewName === feCurrentName) return;
+
+      var parentRef = callerParentNode || getCurrentNode();
+      if (parentRef && parentRef.children && parentRef.children[fullNewName] && fullNewName !== feCurrentName) {
+        OS.showNotification('File Editor', '"' + fullNewName + '" already exists.');
+        return;
+      }
+
+      if (parentRef && parentRef.children) {
+        fileData.content = feTa.value;
+        fileData.size    = feTa.value.length;
+        parentRef.children[fullNewName] = fileData;
+        delete parentRef.children[feCurrentName];
+        feCurrentName = fullNewName;
+        feExt = newExt;
+        render();
+      }
+
+      // Update active pill
+      fePillsEl.querySelectorAll('.fe-type-btn').forEach(function (p) {
+        p.classList.toggle('active', p.dataset.ext === newExt);
+      });
+
+      // Rebuild toolbar for new type
+      var newIsMd   = newExt === 'md';
+      var newIsJson = newExt === 'json';
+      var newIsHtml = newExt === 'html' || newExt === 'htm';
+      if (newIsMd) {
+        feToolbarEl.innerHTML = '<button class="fe-tb" data-a="bold"><b>B</b></button>' +
+          '<button class="fe-tb" data-a="italic"><i>I</i></button>' +
+          '<button class="fe-tb" data-a="h1">H1</button><button class="fe-tb" data-a="h2">H2</button>' +
+          '<span class="fe-tb-sep"></span><button class="fe-tb" data-a="ul">• List</button>' +
+          '<button class="fe-tb" data-a="ol">1. List</button><button class="fe-tb" data-a="code">`code`</button>' +
+          '<button class="fe-tb" data-a="quote">" Quote</button><button class="fe-tb" data-a="hr">─ Rule</button>' +
+          '<span class="fe-tb-sep"></span><button class="fe-tb fe-preview-btn" data-a="preview">Preview</button>';
+      } else if (newIsJson) {
+        feToolbarEl.innerHTML = '<button class="fe-tb" data-a="prettify">Format JSON</button>' +
+          '<button class="fe-tb" data-a="minify">Minify</button><button class="fe-tb" data-a="validate">Validate</button>';
+      } else if (newIsHtml) {
+        feToolbarEl.innerHTML = '<button class="fe-tb fe-preview-btn" data-a="preview-html">Preview HTML</button>' +
+          '<span class="fe-tb-sep"></span>' +
+          '<button class="fe-tb" data-a="wrap-p">&lt;p&gt;</button><button class="fe-tb" data-a="wrap-div">&lt;div&gt;</button>' +
+          '<button class="fe-tb" data-a="wrap-b">&lt;b&gt;</button><button class="fe-tb" data-a="wrap-a">&lt;a&gt;</button>' +
+          '<button class="fe-tb" data-a="wrap-h1">&lt;h1&gt;</button>';
+      } else {
+        feToolbarEl.innerHTML = '<button class="fe-tb" data-a="datetime"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="3" width="14" height="12" rx="1" fill="#fff" stroke="#888" stroke-width=".8"/><rect x="1" y="3" width="14" height="4" rx="1" fill="#4a7acc"/><line x1="5" y1="1" x2="5" y2="5" stroke="#555" stroke-width="1.2" stroke-linecap="round"/><line x1="11" y1="1" x2="11" y2="5" stroke="#555" stroke-width="1.2" stroke-linecap="round"/><rect x="3" y="9" width="2" height="2" rx=".3" fill="#ccc"/><rect x="7" y="9" width="2" height="2" rx=".3" fill="#ccc"/><rect x="11" y="9" width="2" height="2" rx=".3" fill="#ccc"/></svg> Date/Time</button>' +
+          '<button class="fe-tb" data-a="divider">─ Divider</button>' +
+          '<button class="fe-tb" data-a="wrap-toggle">Wrap</button>';
+      }
+      feInPreview = false;
+      feTa.style.display = 'block';
+      fePreview.style.display = 'none';
+
+      // Update window title
+      var winTitle = editWindow.el.querySelector('.window-title');
+      if (winTitle) winTitle.textContent = feCurrentName;
+      feSaved.textContent = 'Renamed';
+    });
+
+    // ── Name input: apply rename on Enter ──
+    feNameInput.addEventListener('keydown', function (nameKeyEvent) {
+      if (nameKeyEvent.key !== 'Enter') return;
+      nameKeyEvent.preventDefault();
+      var newBase    = feNameInput.value.trim();
+      if (!newBase) return;
+      var currentExt = feCurrentName.lastIndexOf('.') >= 0
+        ? feCurrentName.substring(feCurrentName.lastIndexOf('.') + 1)
+        : '';
+      var fullNewName = newBase + (currentExt ? '.' + currentExt : '');
+      if (fullNewName === feCurrentName) return;
+      var parentRef = callerParentNode || getCurrentNode();
+      if (parentRef && parentRef.children) {
+        if (parentRef.children[fullNewName]) { OS.showNotification('File Editor', '"' + fullNewName + '" already exists.'); return; }
+        fileData.content = feTa.value;
+        fileData.size    = feTa.value.length;
+        parentRef.children[fullNewName] = fileData;
+        delete parentRef.children[feCurrentName];
+        feCurrentName = fullNewName;
+        render();
+        var winTitle = editWindow.el.querySelector('.window-title');
+        if (winTitle) winTitle.textContent = feCurrentName;
+        feSaved.textContent = 'Renamed';
+      }
+    });
+
+    feTa.addEventListener('input', function () { feScheduleSave(); feUpdateStat(); });
+    feTa.addEventListener('keydown', function (keydownEvent) {
+      if (keydownEvent.key === 'Tab') {
+        keydownEvent.preventDefault();
+        feInsertWrap('  ', '');
+      }
+    });
+    feTa.addEventListener('click', feUpdateStat);
+    feTa.addEventListener('keyup',  feUpdateStat);
+    feTa.focus();
+    feUpdateStat();
   }
 
   // ── Upload from real computer ──
@@ -512,10 +1252,12 @@ OS.registerApp('files', function buildFiles() {
         });
       }});
       menuItems.push({ label: 'New Text File', icon: OS.fileSvg, action: function () {
-        OS.prompt('File name:', 'Untitled.txt', function (name) {
-          if (name && !parentNode.children[name]) {
-            parentNode.children[name] = { type: 'file', size: 0, modified: todayString(), content: '' };
+        OS.prompt('File name:', 'Untitled.txt', function (newFileName) {
+          if (newFileName && !parentNode.children[newFileName]) {
+            var newFileData = { type: 'file', size: 0, modified: todayString(), content: '' };
+            parentNode.children[newFileName] = newFileData;
             render();
+            openFile(newFileName, newFileData, parentNode);
           }
         });
       }});
@@ -582,7 +1324,7 @@ OS.registerApp('files', function buildFiles() {
 
       row.addEventListener('dblclick', function () {
         if (isFolder) { currentPath.push(name); render(); }
-        else openFile(name, child);
+        else openFile(name, child, node);
       });
 
       row.addEventListener('contextmenu', function (e) {
@@ -1154,29 +1896,287 @@ OS.registerApp('terminal', function buildTerminal() {
 
 // ── Internet Browser ──
 OS.registerApp('browser', function buildBrowser() {
-  var windowObj = OS.createWindow('Internet', 700, 500,
-    '<div class="browser-bar">' +
-      '<span class="browser-label">Address</span>' +
-      '<input class="browser-url" value="https://en.m.wikipedia.org" />' +
-      '<button class="browser-go">Go</button>' +
-    '</div>' +
-    '<iframe class="browser-frame" src="https://en.m.wikipedia.org" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>');
 
-  // Make the window body a flex column so the iframe stretches to fill
-  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+  // ── Shared CSS for all Mini:// pages ──
+  var mcss = '* {margin:0;padding:0;box-sizing:border-box} body{font-family:Tahoma,Geneva,sans-serif;font-size:12px;background:#dce8fa;color:#111} a{color:#1a5ccc;cursor:pointer;text-decoration:none} a:hover{text-decoration:underline} .hdr{background:linear-gradient(180deg,#2e6ad4,#1848a8);padding:12px 20px;display:flex;align-items:center;gap:10px} .hdr-logo{color:#fff;font-size:20px;font-weight:700;letter-spacing:1px} .hdr-logo em{color:#9dd4ff;font-style:normal} .hdr-tag{color:#7abcee;font-size:10px} .mnav{background:#122a5a;display:flex;padding:0 6px} .mnav a{display:inline-block;padding:6px 14px;font-size:11px;color:#a8c8f0;cursor:pointer;transition:background .1s} .mnav a:hover{background:rgba(255,255,255,.12);color:#fff;text-decoration:none} .mnav a.on{color:#fff;font-weight:700;border-bottom:2px solid #5ab0ff} .body{padding:14px;max-width:820px;margin:0 auto} .card{background:#fff;border:1px solid #b8d4f0;border-radius:4px;padding:14px;margin-bottom:12px} .card h2{font-size:14px;color:#1a3a7a;padding-bottom:8px;border-bottom:1px solid #d8eaff;margin-bottom:12px} .card h3{font-size:12px;color:#1a3a7a;margin-bottom:6px} .card p{line-height:1.6;color:#333;margin-bottom:8px} .card ul{padding-left:18px} .card li{margin-bottom:4px;line-height:1.55} .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px} .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px} .qbtn{background:linear-gradient(180deg,#f4f8ff,#e0ecff);border:1px solid #b0ccf0;border-radius:4px;padding:12px 8px;cursor:pointer;text-align:center;transition:background .15s} .qbtn:hover{background:linear-gradient(180deg,#e0ecff,#cce0ff)} .qbtn .ico{font-size:22px;display:block;margin-bottom:4px} .qbtn .lbl{font-size:11px;font-weight:700;color:#1a3a7a} .qbtn .sub{font-size:9px;color:#666;margin-top:2px} .lrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #eef2ff} .lrow:last-child{border-bottom:none} .lrow .ico{font-size:16px;flex-shrink:0} .lrow .info{flex:1} .lrow .info strong{display:block;font-size:11px;color:#111} .lrow .info small{color:#666;font-size:10px} .badge{display:inline-block;background:#1a3a7a;color:#fff;border-radius:8px;padding:1px 7px;font-size:9px;margin:2px 2px 2px 0} .tip{background:#fffce8;border:1px solid #d4c840;border-radius:4px;padding:10px;font-size:11px;color:#555} .tip strong{color:#888800} .two{display:grid;grid-template-columns:1fr 230px;gap:12px} .ftr{text-align:center;padding:10px;font-size:10px;color:#999;background:#e4eefc;border-top:1px solid #c0d8f0} kbd{background:#e4e0d4;border:1px solid #999;border-bottom:2px solid #888;border-radius:3px;padding:1px 5px;font-size:10px} .app-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #eef2ff} .app-item:last-child{border-bottom:none} .app-ico{font-size:26px;flex-shrink:0;width:36px;text-align:center} .app-name{font-weight:700;font-size:12px;color:#1a3a7a} .app-desc{font-size:11px;color:#555;margin-top:2px;line-height:1.5} .cat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;margin:12px 0 4px} code{background:#f0f0f0;border:1px solid #ddd;border-radius:2px;padding:0 4px;font-size:11px}';
 
-  var urlInput = windowObj.el.querySelector('.browser-url');
-  var frame = windowObj.el.querySelector('.browser-frame');
+  // postMessage script injected in every mini page
+  var mjs = '<scr'+'ipt>function go(p){window.parent.postMessage({miniNav:p},"*")}function ext(u){window.parent.postMessage({externalNav:u},"*")}<'+'/script>';
 
-  function navigate() {
-    var url = urlInput.value.trim();
-    if (url.indexOf('http') !== 0) url = 'https://' + url;
-    frame.src = url;
+  function mnav(active) {
+    var tabs = [['home','<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M8 2L1 8h2v6h4v-3.5h2V14h4V8h2z" fill="#3a7acc"/><rect x="6" y="10.5" width="4" height="3.5" rx=".5" fill="#1e56a0"/></svg> Home'],['about','<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#4a8acc"/><text x="8" y="12.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="serif">i</text></svg> About'],['apps','<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="1" y="9" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#4a7acc"/></svg> Apps'],['web','<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#4a9ade" stroke="#2a6aaa" stroke-width=".7"/><ellipse cx="8" cy="8" rx="2.5" ry="6.5" fill="none" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="1.5" y1="8" x2="14.5" y2="8" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="3" y1="5" x2="13" y2="5" stroke="#fff" stroke-width=".5" opacity=".4"/><line x1="3" y1="11" x2="13" y2="11" stroke="#fff" stroke-width=".5" opacity=".4"/></svg> Web'],['help','<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#e8a020"/><text x="8" y="12" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">?</text></svg> Help']];
+    return '<div class="mnav">' + tabs.map(function(t){
+      return '<a onclick="go(\''+t[0]+'\')" class="'+(t[0]===active?'on':'')+'">' + t[1] + '</a>';
+    }).join('') + '</div>';
   }
 
-  windowObj.el.querySelector('.browser-go').addEventListener('click', navigate);
-  urlInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') navigate(); });
+  function wrap(active, body) {
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' + mcss + '</style>' + mjs + '</head><body>' +
+      '<div class="hdr"><div class="hdr-logo">Mini <em>Browser</em></div><div class="hdr-tag">Mini OS</div></div>' +
+      mnav(active) + body + '</body></html>';
+  }
+
+  // ── Page: Home ──
+  var pgHome = wrap('home',
+    '<div class="body"><div class="two">' +
+      '<div>' +
+        '<div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M8 2L1 8h2v6h4v-3.5h2V14h4V8h2z" fill="#3a7acc"/><rect x="6" y="10.5" width="4" height="3.5" rx=".5" fill="#1e56a0"/></svg> Welcome to Mini Browser</h2>' +
+          '<p>Your built-in browser for Mini OS. Enter any web address in the bar above, or explore Mini OS pages using the tabs.</p>' +
+          '<h3>Quick Links</h3><br>' +
+          '<div class="g3">' +
+            '<div class="qbtn" onclick="ext(\'https://en.m.wikipedia.org\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M8 3v10c-2-1-4-1.5-6-1.5V3c2 0 4 .5 6 1.5z" fill="#7a5a2a"/><path d="M8 3v10c2-1 4-1.5 6-1.5V3c-2 0-4 .5-6 1.5z" fill="#a07840"/><line x1="8" y1="3" x2="8" y2="13" stroke="#5a3a1a" stroke-width=".8"/></svg></span><span class="lbl">Wikipedia</span><span class="sub">Encyclopedia</span></div>' +
+            '<div class="qbtn" onclick="ext(\'https://www.google.com\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="#555" stroke-width="1.5"/><line x1="10" y1="10" x2="14" y2="14" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg></span><span class="lbl">Google</span><span class="sub">Search</span></div>' +
+            '<div class="qbtn" onclick="ext(\'https://github.com\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#24292e"/><path d="M8 3.5a4.5 4.5 0 00-1.5 8.75c.23.04.31-.1.31-.22v-.8c-1.25.27-1.52-.6-1.52-.6-.2-.52-.5-.66-.5-.66-.41-.28.03-.27.03-.27.46.03.7.47.7.47.4.69 1.06.49 1.32.37.04-.29.16-.49.28-.6-.99-.11-2.04-.5-2.04-2.2 0-.49.17-.89.46-1.2-.05-.12-.2-.57.04-1.18 0 0 .38-.12 1.23.46a4.3 4.3 0 012.24 0c.85-.58 1.23-.46 1.23-.46.24.61.09 1.06.04 1.18.29.31.46.71.46 1.2 0 1.71-1.05 2.09-2.05 2.2.16.14.3.41.3.83v1.22c0 .12.08.27.32.22A4.5 4.5 0 008 3.5z" fill="#fff"/></svg></span><span class="lbl">GitHub</span><span class="sub">Code</span></div>' +
+            '<div class="qbtn" onclick="ext(\'https://developer.mozilla.org\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="2" width="9" height="12" rx="1" fill="#fff" stroke="#666" stroke-width=".8"/><rect x="5" y="4" width="9" height="12" rx="1" fill="#e8e8e8" stroke="#888" stroke-width=".7"/><line x1="7" y1="7" x2="12" y2="7" stroke="#aaa" stroke-width=".8"/><line x1="7" y1="9.5" x2="12" y2="9.5" stroke="#aaa" stroke-width=".8"/></svg></span><span class="lbl">MDN</span><span class="sub">Web Docs</span></div>' +
+            '<div class="qbtn" onclick="ext(\'https://news.ycombinator.com\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#ff6600"/><text x="8" y="12" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Y</text></svg></span><span class="lbl">Hacker News</span><span class="sub">Tech</span></div>' +
+            '<div class="qbtn" onclick="ext(\'https://www.youtube.com\')"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#cc0000"/><polygon points="6,5 12,8 6,11" fill="#fff"/></svg></span><span class="lbl">YouTube</span><span class="sub">Videos</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="card"><h2>Mini Pages</h2>' +
+          '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M8 2L1 8h2v6h4v-3.5h2V14h4V8h2z" fill="#3a7acc"/></svg></span><div class="info"><strong><a onclick="go(\'home\')">Mini/Home</a></strong><small>This page</small></div></div>' +
+          '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#4a8acc"/><text x="8" y="12.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="serif">i</text></svg></span><div class="info"><strong><a onclick="go(\'about\')">Mini/About</a></strong><small>About Mini OS</small></div></div>' +
+          '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="1" y="9" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#4a7acc"/></svg></span><div class="info"><strong><a onclick="go(\'apps\')">Mini/Apps</a></strong><small>All applications</small></div></div>' +
+          '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#4a9ade" stroke="#2a6aaa" stroke-width=".7"/><ellipse cx="8" cy="8" rx="2.5" ry="6.5" fill="none" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="1.5" y1="8" x2="14.5" y2="8" stroke="#fff" stroke-width=".6" opacity=".7"/></svg></span><div class="info"><strong><a onclick="go(\'web\')">Mini/Web</a></strong><small>Web bookmarks</small></div></div>' +
+          '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#e8a020"/><text x="8" y="12" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">?</text></svg></span><div class="info"><strong><a onclick="go(\'help\')">Mini/Help</a></strong><small>Tips &amp; shortcuts</small></div></div>' +
+        '</div>' +
+        '<div class="tip"><strong>Tip:</strong> Type <kbd>Mini/Apps</kbd> in the address bar to jump to any Mini page.</div>' +
+      '</div>' +
+    '</div></div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  // ── Page: About ──
+  var pgAbout = wrap('about',
+    '<div class="body">' +
+      '<div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#4a8acc"/><text x="8" y="12.5" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="serif">i</text></svg> About Mini OS</h2>' +
+        '<p>Mini OS is a fully functional desktop operating system that runs entirely in your browser. No server required — pure HTML, CSS and JavaScript.</p>' +
+        '<div class="g2">' +
+          '<div><h3>System Info</h3><br><ul>' +
+            '<li><strong>Name:</strong> Mini OS</li>' +
+            '<li><strong>Version:</strong> 1.0 (Build 2600)</li>' +
+            '<li><strong>Type:</strong> Browser-based OS</li>' +
+            '<li><strong>Shell:</strong> Vanilla JS / HTML</li>' +
+            '<li><strong>Storage:</strong> LocalStorage</li>' +
+          '</ul></div>' +
+          '<div><h3>Features</h3><br><ul>' +
+            '<li>Multi-window desktop</li>' +
+            '<li>Per-user profiles &amp; sessions</li>' +
+            '<li>Persistent file system</li>' +
+            '<li>Multi-note Notepad + Markdown</li>' +
+            '<li>Code Editor with syntax highlight</li>' +
+            '<li>Terminal with 30+ commands</li>' +
+            '<li>Paint, Calculator, Minesweeper</li>' +
+          '</ul></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card"><h2>Built With</h2>' +
+        '<p>Mini OS uses zero external dependencies — just the web platform.</p>' +
+        '<span class="badge">HTML5</span><span class="badge">CSS3</span><span class="badge">Vanilla JS</span><span class="badge">LocalStorage</span><span class="badge">Canvas API</span><span class="badge">IndexedDB</span>' +
+      '</div>' +
+      '<div class="card"><h2>Credits</h2>' +
+        '<p>Built as a demonstration of what the modern browser platform can do without any frameworks or build tools beyond a simple dev server.</p>' +
+        '<p><a onclick="go(\'home\')">← Back to Home</a></p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  // ── Page: Apps ──
+  function appRow(ico, name, desc) {
+    return '<div class="app-item"><div class="app-ico">' + ico + '</div><div><div class="app-name">' + name + '</div><div class="app-desc">' + desc + '</div></div></div>';
+  }
+  var pgApps = wrap('apps',
+    '<div class="body">' +
+      '<div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="1" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="1" y="9" width="6" height="6" rx="1" fill="#4a7acc"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#4a7acc"/></svg> Mini OS Applications</h2>' +
+        '<p>All built-in apps. Open them from desktop icons or the Start Menu.</p>' +
+        '<div class="cat-lbl">Productivity</div>' +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="3" y="1" width="10" height="14" rx="1" fill="#fff" stroke="#6685a0" stroke-width=".8"/><line x1="5" y1="5" x2="11" y2="5" stroke="#b0c4de" stroke-width=".7"/><line x1="5" y1="7" x2="11" y2="7" stroke="#b0c4de" stroke-width=".7"/><line x1="5" y1="9" x2="9" y2="9" stroke="#b0c4de" stroke-width=".7"/><rect x="2" y="1" width="2" height="14" rx=".5" fill="#4a7ebb"/></svg>','Notepad','Multi-note editor with sidebar, Markdown preview, formatting toolbar, find bar, and auto-save to LocalStorage.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M1 5V13a1 1 0 001 1h12a1 1 0 001-1V6a1 1 0 00-1-1H8L6.5 3H2a1 1 0 00-1 1z" fill="#f5d76e" stroke="#c8a415" stroke-width=".7"/></svg>','My Documents','Full file explorer with folders, drag-and-drop, upload, copy/cut/paste, Recycle Bin, and right-click menus.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="2" width="14" height="12" rx="1.5" fill="#1e1e1e" stroke="#555" stroke-width=".8"/><text x="8" y="11" text-anchor="middle" fill="#569cd6" font-size="6" font-family="monospace">&lt;/&gt;</text></svg>','Code Editor','Write JavaScript, HTML or CSS with syntax highlighting. Run JS against the OS or preview HTML live.') +
+        '<div class="cat-lbl">Internet</div>' +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#4a9ade" stroke="#2a6aaa" stroke-width=".7"/><ellipse cx="8" cy="8" rx="2.5" ry="6.5" fill="none" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="1.5" y1="8" x2="14.5" y2="8" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="3" y1="5" x2="13" y2="5" stroke="#fff" stroke-width=".5" opacity=".4"/><line x1="3" y1="11" x2="13" y2="11" stroke="#fff" stroke-width=".5" opacity=".4"/></svg>','Internet','This browser. Supports any https:// URL plus internal Mini/ pages.') +
+        '<div class="cat-lbl">Utilities</div>' +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="2" width="14" height="12" rx="1.5" fill="#0c0c0c" stroke="#555" stroke-width=".8"/><polyline points="3,6 6,8 3,10" fill="none" stroke="#c0c0c0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="7" y1="10" x2="12" y2="10" stroke="#c0c0c0" stroke-width="1.2" stroke-linecap="round"/></svg>','Command Prompt','Terminal with 30+ commands: dir, cd, tree, cat, mkdir, del, grep, pipe (|), tab-complete, and more.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="3" y="1" width="10" height="14" rx="1.5" fill="#c0cfe0" stroke="#5a7a9a" stroke-width=".8"/><rect x="4.5" y="2.5" width="7" height="3" rx=".5" fill="#d4e8d4"/><rect x="4.5" y="7" width="2" height="1.5" rx=".3" fill="#e8e8e8"/><rect x="7" y="7" width="2" height="1.5" rx=".3" fill="#e8e8e8"/><rect x="9.5" y="7" width="2" height="1.5" rx=".3" fill="#e8e8e8"/><rect x="4.5" y="10" width="2" height="1.5" rx=".3" fill="#e8e8e8"/><rect x="7" y="10" width="2" height="1.5" rx=".3" fill="#e8e8e8"/><rect x="9.5" y="10" width="2" height="1.5" rx=".3" fill="#6a9ada"/></svg>','Calculator','Standard four-function calculator with percent and sign-flip.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#f0f0f0" stroke="#666" stroke-width=".8"/><circle cx="8" cy="8" r="5.5" fill="#fff" stroke="#ddd" stroke-width=".4"/><line x1="8" y1="8" x2="8" y2="4" stroke="#333" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="8" x2="11" y2="10" stroke="#555" stroke-width=".9" stroke-linecap="round"/><circle cx="8" cy="8" r="1" fill="#333"/></svg>','Clock','Live analog + digital clock with full date display.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="2" width="14" height="12" rx="1" fill="#fff" stroke="#888" stroke-width=".8"/><circle cx="5" cy="7" r="2" fill="#ff4444"/><circle cx="10" cy="6" r="2" fill="#44aa44"/><path d="M3 12 Q7 7 11 11" fill="none" stroke="#dd8800" stroke-width="1.5" stroke-linecap="round"/></svg>','Paint','Freehand canvas drawing with colour palette and brush size control.') +
+        '<div class="cat-lbl">Games &amp; System</div>' +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8.5" r="4.5" fill="#333"/><line x1="8" y1="2" x2="8" y2="4" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="13" x2="8" y2="15" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="8.5" x2="4" y2="8.5" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="8.5" x2="14" y2="8.5" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="3.5" y1="4" x2="5" y2="5.5" stroke="#333" stroke-width="1.2" stroke-linecap="round"/><line x1="12.5" y1="4" x2="11" y2="5.5" stroke="#333" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8.5" r="2" fill="#ff4444"/></svg>','Minesweeper','Classic 9×9 Minesweeper with flag support and timer.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="2.5" fill="none" stroke="#555" stroke-width="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M11.53 4.47l-1.42 1.42M4.47 11.53l-1.42 1.42" stroke="#555" stroke-width="1.2" stroke-linecap="round"/></svg>','Control Panel','Wallpaper presets, custom image/colour wallpapers, and system info.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="#555" stroke-width="1.5"/><line x1="10" y1="10" x2="14" y2="14" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg>','Find Files','Search the entire virtual filesystem by filename.') +
+        appRow('<svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="4" y="2" width="8" height="12" rx="1" fill="#fff" stroke="#888" stroke-width=".8"/><rect x="6" y="1" width="4" height="3" rx=".5" fill="#ddd" stroke="#888" stroke-width=".6"/><line x1="6" y1="7" x2="10" y2="7" stroke="#ccc" stroke-width=".8"/><line x1="6" y1="9.5" x2="10" y2="9.5" stroke="#ccc" stroke-width=".8"/><line x1="6" y1="12" x2="9" y2="12" stroke="#ccc" stroke-width=".8"/></svg>','Clipboard Manager','View and manage the file cut/copy history.') +
+      '</div>' +
+    '</div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  // ── Page: Web ──
+  var pgWeb = wrap('web',
+    '<div class="body">' +
+      '<div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#4a9ade" stroke="#2a6aaa" stroke-width=".7"/><ellipse cx="8" cy="8" rx="2.5" ry="6.5" fill="none" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="1.5" y1="8" x2="14.5" y2="8" stroke="#fff" stroke-width=".6" opacity=".7"/><line x1="3" y1="5" x2="13" y2="5" stroke="#fff" stroke-width=".5" opacity=".4"/><line x1="3" y1="11" x2="13" y2="11" stroke="#fff" stroke-width=".5" opacity=".4"/></svg> Web Bookmarks</h2><p>Click any link to open it in this browser.</p>' +
+        '<div class="g2">' +
+          '<div><h3>Reference &amp; Docs</h3><br>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="1" y="2" width="9" height="12" rx="1" fill="#fff" stroke="#666" stroke-width=".8"/><rect x="5" y="4" width="9" height="12" rx="1" fill="#e8e8e8" stroke="#888" stroke-width=".7"/><line x1="7" y1="7" x2="12" y2="7" stroke="#aaa" stroke-width=".8"/><line x1="7" y1="9.5" x2="12" y2="9.5" stroke="#aaa" stroke-width=".8"/></svg></span><div class="info"><strong><a onclick="ext(\'https://developer.mozilla.org\')">MDN Web Docs</a></strong><small>HTML, CSS, JS reference</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M8 3v10c-2-1-4-1.5-6-1.5V3c2 0 4 .5 6 1.5z" fill="#7a5a2a"/><path d="M8 3v10c2-1 4-1.5 6-1.5V3c-2 0-4 .5-6 1.5z" fill="#a07840"/><line x1="8" y1="3" x2="8" y2="13" stroke="#5a3a1a" stroke-width=".8"/></svg></span><div class="info"><strong><a onclick="ext(\'https://en.m.wikipedia.org\')">Wikipedia</a></strong><small>Free encyclopedia</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M12.2 1.8a3 3 0 00-3.9 4L3 11a1.5 1.5 0 002.1 2.1l5.2-5.3a3 3 0 004-3.9l-1.8 1.8-1.4-1.4 1.8-1.8-.7-.7z" fill="#888"/></svg></span><div class="info"><strong><a onclick="ext(\'https://caniuse.com\')">Can I Use</a></strong><small>Browser support tables</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><rect x="3" y="1" width="10" height="14" rx="1" fill="#fff" stroke="#6685a0" stroke-width=".8"/><line x1="5" y1="5" x2="11" y2="5" stroke="#b0c4de" stroke-width=".7"/><line x1="5" y1="7" x2="11" y2="7" stroke="#b0c4de" stroke-width=".7"/><rect x="2" y="1" width="2" height="14" rx=".5" fill="#4a7ebb"/></svg></span><div class="info"><strong><a onclick="ext(\'https://devdocs.io\')">DevDocs</a></strong><small>API documentation</small></div></div>' +
+          '</div>' +
+          '<div><h3>Search</h3><br>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="#555" stroke-width="1.5"/><line x1="10" y1="10" x2="14" y2="14" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg></span><div class="info"><strong><a onclick="ext(\'https://www.google.com\')">Google</a></strong><small>Web search</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><ellipse cx="8" cy="11" rx="5.5" ry="3.5" fill="#de5733"/><circle cx="9" cy="6.5" r="3.5" fill="#de5733"/><ellipse cx="7.5" cy="7" rx="2" ry="1.2" fill="#f5a800"/><circle cx="11" cy="5.5" r=".8" fill="#1a1a1a"/></svg></span><div class="info"><strong><a onclick="ext(\'https://duckduckgo.com\')">DuckDuckGo</a></strong><small>Private search</small></div></div>' +
+          '</div>' +
+          '<div><h3>Development</h3><br>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#24292e"/><path d="M8 3.5a4.5 4.5 0 00-1.5 8.75c.23.04.31-.1.31-.22v-.8c-1.25.27-1.52-.6-1.52-.6-.2-.52-.5-.66-.5-.66-.41-.28.03-.27.03-.27.46.03.7.47.7.47.4.69 1.06.49 1.32.37.04-.29.16-.49.28-.6-.99-.11-2.04-.5-2.04-2.2 0-.49.17-.89.46-1.2-.05-.12-.2-.57.04-1.18 0 0 .38-.12 1.23.46a4.3 4.3 0 012.24 0c.85-.58 1.23-.46 1.23-.46.24.61.09 1.06.04 1.18.29.31.46.71.46 1.2 0 1.71-1.05 2.09-2.05 2.2.16.14.3.41.3.83v1.22c0 .12.08.27.32.22A4.5 4.5 0 008 3.5z" fill="#fff"/></svg></span><div class="info"><strong><a onclick="ext(\'https://github.com\')">GitHub</a></strong><small>Code hosting</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#ff6600"/><text x="8" y="12" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Y</text></svg></span><div class="info"><strong><a onclick="ext(\'https://news.ycombinator.com\')">Hacker News</a></strong><small>Tech community</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><path d="M2 2h12a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 3V3a1 1 0 011-1z" fill="#e44"/><line x1="5" y1="6" x2="11" y2="6" stroke="#fff" stroke-width=".9"/><line x1="5" y1="8.5" x2="9" y2="8.5" stroke="#fff" stroke-width=".9"/></svg></span><div class="info"><strong><a onclick="ext(\'https://stackoverflow.com\')">Stack Overflow</a></strong><small>Q&amp;A for developers</small></div></div>' +
+          '</div>' +
+          '<div><h3>Media</h3><br>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#cc0000"/><polygon points="6,5 12,8 6,11" fill="#fff"/></svg></span><div class="info"><strong><a onclick="ext(\'https://www.youtube.com\')">YouTube</a></strong><small>Video platform</small></div></div>' +
+            '<div class="lrow"><span class="ico"><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="6.5" fill="#4aade8" stroke="#2a7aaa" stroke-width=".7"/><path d="M3.5 5.5c.8 0 1.5.8 2.5 0s.8-1.8 1.8-.8 0 2.8.8 2.8" fill="none" stroke="#4a8a30" stroke-width="1.5"/><path d="M3 10c.8 1 1.8 0 2.8 1s.8 1.8 1.8.8" fill="none" stroke="#4a8a30" stroke-width="1.5"/></svg></span><div class="info"><strong><a onclick="ext(\'https://www.openstreetmap.org\')">OpenStreetMap</a></strong><small>Free maps</small></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  // ── Page: Help ──
+  var pgHelp = wrap('help',
+    '<div class="body">' +
+      '<div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#e8a020"/><text x="8" y="12" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">?</text></svg> Mini Browser Help</h2>' +
+        '<h3>Navigating</h3><br>' +
+        '<ul>' +
+          '<li>Type any URL in the address bar and press <kbd>Enter</kbd> or click <strong>Go</strong></li>' +
+          '<li>Use <kbd>◀</kbd> and <kbd>▶</kbd> buttons to go back and forward in history</li>' +
+          '<li>Click <kbd>⌂</kbd> to return to Mini/Home at any time</li>' +
+          '<li>Type <code>Mini/About</code>, <code>Mini/Apps</code>, <code>Mini/Web</code>, or <code>Mini/Help</code> for built-in pages</li>' +
+        '</ul>' +
+      '</div>' +
+      '<div class="card"><h2>Mini OS Keyboard Shortcuts</h2>' +
+        '<div class="g2">' +
+          '<div><h3>Global</h3><br><ul>' +
+            '<li><kbd>Alt</kbd>+<kbd>F4</kbd> — Close window</li>' +
+            '<li>Right-click desktop — Wallpaper menu</li>' +
+          '</ul></div>' +
+          '<div><h3>Notepad</h3><br><ul>' +
+            '<li><kbd>Shift</kbd>+<kbd>B</kbd> — Bold</li>' +
+            '<li><kbd>Shift</kbd>+<kbd>I</kbd> — Italic</li>' +
+            '<li><kbd>Shift</kbd>+<kbd>F</kbd> — Find</li>' +
+            '<li><kbd>Shift</kbd>+<kbd>P</kbd> — Preview</li>' +
+            '<li><kbd>Shift</kbd>+<kbd>N</kbd> — New note</li>' +
+          '</ul></div>' +
+          '<div><h3>Terminal</h3><br><ul>' +
+            '<li><kbd>↑</kbd> / <kbd>↓</kbd> — Command history</li>' +
+            '<li><kbd>Tab</kbd> — Autocomplete filename</li>' +
+            '<li><code>help</code> — List all commands</li>' +
+          '</ul></div>' +
+          '<div><h3>File Editor</h3><br><ul>' +
+            '<li>Click type pill — Convert file type</li>' +
+            '<li><kbd>Enter</kbd> in name — Rename file</li>' +
+            '<li><kbd>Tab</kbd> — Insert 2 spaces</li>' +
+          '</ul></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  // ── 404 page ──
+  var pg404 = wrap('home',
+    '<div class="body"><div class="card"><h2><svg viewBox="0 0 16 16" width="1em" height="1em" style="vertical-align:middle"><circle cx="8" cy="8" r="7" fill="#cc2222" stroke="#aa1111" stroke-width=".7"/><line x1="5" y1="5" x2="11" y2="11" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="11" y1="5" x2="5" y2="11" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg> Page Not Found</h2>' +
+      '<p>The Mini page you requested does not exist.</p>' +
+      '<p>Available pages: <a onclick="go(\'home\')">Mini/Home</a>, <a onclick="go(\'about\')">Mini/About</a>, <a onclick="go(\'apps\')">Mini/Apps</a>, <a onclick="go(\'web\')">Mini/Web</a>, <a onclick="go(\'help\')">Mini/Help</a></p>' +
+    '</div></div>' +
+    '<div class="ftr">Mini Browser &bull; Mini OS v1.0</div>');
+
+  var miniPageMap = { home: pgHome, about: pgAbout, apps: pgApps, web: pgWeb, help: pgHelp };
+
+  // ── Build window ──
+  var windowObj = OS.createWindow('Internet', 720, 520,
+    '<div class="browser-bar">' +
+      '<button class="browser-back" title="Back">&#9664;</button>' +
+      '<button class="browser-fwd"  title="Forward">&#9654;</button>' +
+      '<button class="browser-home-btn" title="Home">&#8962;</button>' +
+      '<input  class="browser-url"  type="text" value="Mini/Home" />' +
+      '<button class="browser-go">Go</button>' +
+    '</div>' +
+    '<iframe class="browser-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>');
+
+  windowObj.el.querySelector('.window-body').classList.add('window-body-flex');
+
+  var urlInput  = windowObj.el.querySelector('.browser-url');
+  var frame     = windowObj.el.querySelector('.browser-frame');
+  var backBtn   = windowObj.el.querySelector('.browser-back');
+  var fwdBtn    = windowObj.el.querySelector('.browser-fwd');
+
+  // ── Navigation history ──
+  var navHistory = ['Mini/Home'];
+  var navIndex   = 0;
+
+  function updateNavBtns() {
+    backBtn.disabled = navIndex <= 0;
+    fwdBtn.disabled  = navIndex >= navHistory.length - 1;
+    backBtn.style.opacity = backBtn.disabled ? '0.4' : '1';
+    fwdBtn.style.opacity  = fwdBtn.disabled  ? '0.4' : '1';
+  }
+
+  function pushHistory(url) {
+    navHistory = navHistory.slice(0, navIndex + 1);
+    if (navHistory[navIndex] !== url) {
+      navHistory.push(url);
+      navIndex = navHistory.length - 1;
+    }
+    updateNavBtns();
+  }
+
+  function loadUrl(rawUrl, skipHistory) {
+    var url = (rawUrl || urlInput.value).trim();
+
+    // Normalise Mini/ variants → mini://pagename
+    var miniMatch = url.match(/^mini[:/][\\/]?([a-z0-9_-]*)?$/i);
+    if (miniMatch || url === '' || /^mini$/i.test(url)) {
+      var pageName = (miniMatch && miniMatch[1] ? miniMatch[1] : 'home').toLowerCase();
+      var pageHtml = miniPageMap[pageName] || pg404;
+      frame.srcdoc = pageHtml;
+      var display = 'Mini/' + pageName.charAt(0).toUpperCase() + pageName.slice(1);
+      urlInput.value = display;
+      if (!skipHistory) pushHistory(display);
+      return;
+    }
+
+    // External URL — wrap in inner iframe so srcdoc→src transition always works
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    urlInput.value = url;
+    var outerHtml = '<!DOCTYPE html><html><head><style>*{margin:0;padding:0;box-sizing:border-box}html,body{height:100%;overflow:hidden}iframe{display:block;width:100%;height:100%;border:none}</style></head><body><iframe src="' + url.replace(/"/g, '%22') + '" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"></iframe></body></html>';
+    frame.srcdoc = outerHtml;
+    if (!skipHistory) pushHistory(url);
+  }
+
+  // ── Button handlers ──
+  windowObj.el.querySelector('.browser-go').addEventListener('click', function () { loadUrl(); });
+  urlInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') loadUrl(); });
+
+  backBtn.addEventListener('click', function () {
+    if (navIndex > 0) { navIndex--; loadUrl(navHistory[navIndex], true); urlInput.value = navHistory[navIndex]; updateNavBtns(); }
+  });
+  fwdBtn.addEventListener('click', function () {
+    if (navIndex < navHistory.length - 1) { navIndex++; loadUrl(navHistory[navIndex], true); urlInput.value = navHistory[navIndex]; updateNavBtns(); }
+  });
+  windowObj.el.querySelector('.browser-home-btn').addEventListener('click', function () { loadUrl('Mini/Home'); });
+
+  // ── postMessage from mini pages ──
+  function onMiniMessage(evt) {
+    if (!evt.data) return;
+    if (evt.data.miniNav)    loadUrl('Mini/' + evt.data.miniNav);
+    if (evt.data.externalNav) loadUrl(evt.data.externalNav);
+  }
+  window.addEventListener('message', onMiniMessage);
+  windowObj.el.querySelector('.btn-close').addEventListener('click', function () {
+    window.removeEventListener('message', onMiniMessage);
+  });
+
+  // ── Boot to home ──
+  loadUrl('Mini/Home', true);
+  updateNavBtns();
 });
+
 
 // ── Paint ──
 OS.registerApp('paint', function buildPaint() {
